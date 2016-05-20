@@ -12,9 +12,6 @@ import mtfrp.core._
 import scalatags.Text.all._
 
 object MyApp extends MyMain {
-
-  val x: ServerEvent[Int] = null
-
-  val behavior = ServerDiscreteBehavior.constant(div(p("hello")))
-  val ui: ClientDiscreteBehavior[HTML] = behavior.replicate
+  val behavior = ApplicationDiscreteBehavior.constant("hello")
+  val ui: ClientDiscreteBehavior[HTML] = behavior.toServer.map(x => div(p(x)))
 }

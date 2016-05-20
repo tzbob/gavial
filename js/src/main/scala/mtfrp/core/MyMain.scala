@@ -5,6 +5,9 @@ import hokko.core._
 
 trait MyMain extends js.JSApp with FrpMain {
   def main(): Unit = {
+    println(ui.graph)
+    println(ReplicationGraph.exitEvents(ui.graph))
+    println(ReplicationGraph.exitBehaviors(ui.graph))
     // val engine = Engine.compile(Nil, Seq(ui.rep))
     // val currentUi = engine.askCurrentValues()(ui.rep)
     // println(currentUi)
