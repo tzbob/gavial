@@ -13,8 +13,8 @@ import scalatags.Text.all._
 import io.circe._
 
 object MyApp extends MyMain {
-  val ev: ApplicationEvent[Client => Option[String]] = ???
-  val behavior: ApplicationIncBehavior[Client => String, Client => Option[String]] = ev.fold((c: Client) => "") {
+  val ev: AppEvent[Client => Option[String]] = AppEvent.empty
+  val behavior: AppIncBehavior[Client => String, Client => Option[String]] = ev.fold((c: Client) => "") {
     (f1, f2) => c: Client => f1(c) + f2(c).getOrElse("")
   }
   val ui: ClientDiscreteBehavior[HTML] = behavior.toClient.discreteMap((x: String) => div(p(x)))

@@ -7,5 +7,5 @@ private[core] trait ClientTierLike extends Tier {
   type DiscreteBehavior[A] = ClientDiscreteBehavior[A]
   type IncrementalBehavior[A, DeltaA] = ClientIncBehavior[A, DeltaA]
 
-  type Replicated = ApplicationTier
+  type Replicated = AppTier
 }

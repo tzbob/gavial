@@ -26,20 +26,20 @@ package object core {
       new ClientIncBehavior(rep, initial, graph)
   }
 
-  implicit object ApplicationBuilder extends MockBuilder[ApplicationTier] {
-    def event[A](graph: ReplicationGraph): ApplicationTier#Event[A] =
-      new ApplicationEvent(graph)
+  implicit object AppBuilder extends MockBuilder[AppTier] {
+    def event[A](graph: ReplicationGraph): AppTier#Event[A] =
+      new AppEvent(graph)
 
-    def behavior[A](graph: ReplicationGraph): ApplicationTier#Behavior[A] =
-      new ApplicationBehavior(graph)
+    def behavior[A](graph: ReplicationGraph): AppTier#Behavior[A] =
+      new AppBehavior(graph)
 
-    def discreteBehavior[A](graph: ReplicationGraph, init: A): ApplicationTier#DiscreteBehavior[A] =
-      new ApplicationDiscreteBehavior(graph, init)
+    def discreteBehavior[A](graph: ReplicationGraph, init: A): AppTier#DiscreteBehavior[A] =
+      new AppDiscreteBehavior(graph, init)
 
     def incrementalBehavior[A, DeltaA](
       graph: ReplicationGraph,
       init: A
-    ): ApplicationTier#IncrementalBehavior[A, DeltaA] =
-      new ApplicationIncBehavior(graph, init)
+    ): AppTier#IncrementalBehavior[A, DeltaA] =
+      new AppIncBehavior(graph, init)
   }
 }

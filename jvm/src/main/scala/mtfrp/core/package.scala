@@ -4,26 +4,26 @@ package object core {
 
   import hokko.core
 
-  implicit object ApplicationBuilder extends HokkoBuilder[ApplicationTier] {
-    def event[A](rep: core.Event[A], graph: ReplicationGraph): ApplicationTier#Event[A] =
-      new ApplicationEvent(rep, graph)
+  implicit object AppBuilder extends HokkoBuilder[AppTier] {
+    def event[A](rep: core.Event[A], graph: ReplicationGraph): AppTier#Event[A] =
+      new AppEvent(rep, graph)
 
-    def behavior[A](rep: core.Behavior[A], graph: ReplicationGraph): ApplicationTier#Behavior[A] =
-      new ApplicationBehavior(rep, graph)
+    def behavior[A](rep: core.Behavior[A], graph: ReplicationGraph): AppTier#Behavior[A] =
+      new AppBehavior(rep, graph)
 
     def discreteBehavior[A](
       rep: core.DiscreteBehavior[A],
       initial: A,
       graph: ReplicationGraph
-    ): ApplicationTier#DiscreteBehavior[A] =
-      new ApplicationDiscreteBehavior(rep, initial, graph)
+    ): AppTier#DiscreteBehavior[A] =
+      new AppDiscreteBehavior(rep, initial, graph)
 
     def incrementalBehavior[A, DeltaA](
       rep: core.IncrementalBehavior[A, DeltaA],
       initial: A,
       graph: ReplicationGraph
-    ): ApplicationTier#IncrementalBehavior[A, DeltaA] =
-      new ApplicationIncBehavior(rep, initial, graph)
+    ): AppTier#IncrementalBehavior[A, DeltaA] =
+      new AppIncBehavior(rep, initial, graph)
   }
 
   implicit object ClientBuilder extends MockBuilder[ClientTier] {
