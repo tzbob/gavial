@@ -10,8 +10,12 @@ package mtfrp.core {
 
 import mtfrp.core._
 import scalatags.Text.all._
+import io.circe._
 
 object MyApp extends MyMain {
-  val behavior = ApplicationDiscreteBehavior.constant("hello")
-  val ui: ClientDiscreteBehavior[HTML] = behavior.toServer.map(x => div(p(x)))
+  val ev: ApplicationEvent[Client => Option[String]] = ???
+  val behavior: ApplicationIncBehavior[Client => String, Client => Option[String]] = ev.fold((c: Client) => "") {
+    (f1, f2) => c: Client => f1(c) + f2(c).getOrElse("")
+  }
+  val ui: ClientDiscreteBehavior[HTML] = behavior.toClient.discreteMap((x: String) => div(p(x)))
 }

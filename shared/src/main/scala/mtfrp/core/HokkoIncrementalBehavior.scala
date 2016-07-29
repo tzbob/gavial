@@ -2,6 +2,7 @@ package mtfrp
 package core
 
 import hokko.core
+import io.circe._
 
 class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
   private[core] override val rep: core.IncrementalBehavior[A, DeltaA],

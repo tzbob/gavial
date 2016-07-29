@@ -28,6 +28,9 @@ class MockDiscreteBehavior[T <: MockTier: MockBuilder, A](
 
   def withDeltas[DeltaA, AA >: A](init: AA, deltas: T#Event[DeltaA]): T#IncrementalBehavior[AA, DeltaA] =
     mockBuilder.incrementalBehavior(graph + deltas.graph, init)
+
+  // TODO
+  def getInit: A = initial
 }
 
 abstract class MockDiscreteBehaviorOps[T <: MockTier: MockBuilder] {

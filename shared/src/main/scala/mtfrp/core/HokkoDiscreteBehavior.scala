@@ -30,7 +30,6 @@ class HokkoDiscreteBehavior[T <: HokkoTier: HokkoBuilder, A](
 
   def withDeltas[DeltaA, AA >: A](init: AA, deltas: T#Event[DeltaA]): T#IncrementalBehavior[AA, DeltaA] =
     builder.incrementalBehavior(rep.withDeltas(init, deltas.rep), init, graph)
-
 }
 
 abstract class HokkoDiscreteBehaviorOps[T <: HokkoTier: HokkoBuilder] {

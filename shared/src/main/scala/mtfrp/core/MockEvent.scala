@@ -1,7 +1,8 @@
 package mtfrp
 package core
 
-import hokko. { core => HC }
+import hokko.{core => HC}
+import io.circe._
 
 class MockEvent[T <: MockTier: MockBuilder, A](
   private[core] val graph: ReplicationGraph
@@ -32,10 +33,4 @@ class MockEvent[T <: MockTier: MockBuilder, A](
     mockBuilder.event(graph + other.graph)
   def unionRight[AA >: A](other: T#Event[AA]): T#Event[AA] =
     mockBuilder.event(graph + other.graph)
-
-  def replicate: T#Replicated#Event[A] = {
-    val source = HC.Event.source[A]
-    val newGraph = ReplicationGraph.receiver(graph, source)
-    otherBuilder.event(source, newGraph)
-  }
 }

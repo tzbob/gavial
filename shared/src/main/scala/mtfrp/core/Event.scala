@@ -23,6 +23,4 @@ trait Event[T <: Tier, A] {
   def map[B](f: A => B): T#Event[B]
 
   def dropIf[B](f: A => Boolean): T#Event[A]
-
-  def replicate: T#Replicated#Event[A]
 }

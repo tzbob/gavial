@@ -17,6 +17,4 @@ trait DiscreteBehavior[T <: Tier, A] extends Behavior[T, A] {
   def discreteMap2[B, C](b: T#DiscreteBehavior[B])(f: (A, B) => C): T#DiscreteBehavior[C]
 
   def discreteMap3[B, C, D](b: T#DiscreteBehavior[B], c: T#DiscreteBehavior[C])(f: (A, B, C) => D): T#DiscreteBehavior[D]
-
-  def replicate: T#Replicated#DiscreteBehavior[A] = ???
 }

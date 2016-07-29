@@ -2,11 +2,14 @@ package mtfrp
 package core
 
 import hokko.core
+import io.circe._
 
 private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
   private[core] val rep: core.Event[A],
   private[core] val graph: ReplicationGraph
-)(implicit mockBuilder: MockBuilder[T#Replicated]) extends Event[T, A] {
+) extends Event[T, A] {
+
+  type Tier = T
 
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[T]]
 
@@ -40,9 +43,4 @@ private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
 
   def unionRight[AA >: A](other: T#Event[AA]): T#Event[AA] =
     hokkoBuilder.event(rep.unionRight(other.rep), graph + other.graph)
-
-  def replicate: T#Replicated#Event[A] = {
-    val newGraph = ReplicationGraph.receiver(graph, rep)
-    mockBuilder.event(newGraph)
-  }
 }
