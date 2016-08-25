@@ -1,36 +1,20 @@
-val runJVM = taskKey[Unit]("Runs the JVM code")
+scalaVersion in ThisBuild := "2.11.8"
 
-val compileResourceJS = taskKey[Unit]("Compiles to JavaScript and moves the results to the resource directory")
-compileResourceJS := {
-  val resultFile = ((fastOptJS in Compile) in fooJS).value.data
-  val resourceDir = ((resourceDirectory in Compile) in fooJVM).value
-  IO.copyFile(resultFile, resourceDir / "main-fastOpt.js")
-}
+lazy val root = project
+  .in(file("."))
+  .aggregate(fooJS, fooJVM)
+  .settings(publish := {}, publishLocal := {})
 
-scalaVersion in ThisBuild := "2.11.6"
-
-val circeVersion = "0.4.1"
-
-lazy val root = project.in(file(".")).
-  aggregate(fooJS, fooJVM).
-  settings(
-    publish := {},
-    publishLocal := {},
-    runJVM := ((run in Compile) in fooJVM).toTask("").value,
-    (run in Compile) := {
-      compileResourceJS.value
-      runJVM.value
-    }
-  )
-
-lazy val foo = crossProject.in(file("."))
+lazy val foo = crossProject
+  .in(file("."))
   .settings(
+    scalafmtConfig in ThisBuild := Some(file(".scalafmt")),
     organization := "foo",
     name := "foo",
     autoCompilerPlugins := true,
-
     scalacOptions ++= Seq(
-      "-encoding", "UTF-8",
+      "-encoding",
+      "UTF-8",
       "-target:jvm-1.6",
       "-feature",
       "-deprecation",
@@ -41,36 +25,37 @@ lazy val foo = crossProject.in(file("."))
       "-Ywarn-numeric-widen",
       "-Ywarn-value-discard",
       "-Xfuture",
-      "-language:higherKinds"
+      "-language:higherKinds",
+      "-language:existentials"
     ),
-
     libraryDependencies ++= Seq(
       "hokko" %%% "hokkonat" % "0.1-SNAPSHOT",
       "com.lihaoyi" %%% "scalatags" % "0.5.5",
       "com.lihaoyi" %%% "sourcecode" % "0.1.0",
-      "org.scalatest" %% "scalatest" % "3.0.0-M10" % "test",
-      "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test"
-
+      "org.scalatest" %%% "scalatest" % "3.0.0-M10" % "test"
     ) ++ Seq(
-        "io.circe" %%% "circe-core",
-        "io.circe" %%% "circe-generic",
-        "io.circe" %%% "circe-parser"
-      ).map(_ % circeVersion)
-
+      "io.circe" %%% "circe-core",
+      "io.circe" %%% "circe-generic",
+      "io.circe" %%% "circe-parser"
+    ).map(_ % Version.circe)
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "de.heikoseeberger" %% "akka-sse" % "1.7.3",
-      "de.heikoseeberger" %% "akka-http-circe" % "1.6.0"
+      "de.heikoseeberger" %% "akka-sse" % "1.8.1",
+      "de.heikoseeberger" %% "akka-http-circe" % "1.8.0",
+      "com.typesafe.akka" %% "akka-http-testkit" % Version.akka
     )
   )
   .jsSettings(
     // scalaJSUseRhino in Global := false,
-    libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "0.8.2"
-    )
+    persistLauncher in Compile := true,
+    libraryDependencies ++= Seq("org.scala-js" %%% "scalajs-dom" % "0.8.2")
   )
 
 // Needed, so sbt finds the projects
-lazy val fooJVM = foo.jvm
 lazy val fooJS = foo.js
+
+lazy val fooJVM = foo.jvm.settings(
+  resources in Compile += (fastOptJS in fooJS in Compile).value.data,
+  resources in Compile += (packageScalaJSLauncher in fooJS in Compile).value.data
+)
