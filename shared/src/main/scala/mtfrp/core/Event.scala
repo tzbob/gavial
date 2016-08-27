@@ -1,12 +1,16 @@
 package mtfrp
 package core
 
+import hokko.core
+
 trait Event[T <: Tier, A] {
   private[core] val graph: ReplicationGraph
 
-  def fold[B, AA >: A](initial: B)(f: (B, AA) => B): T#IncrementalBehavior[B, AA]
+  def fold[B, AA >: A](initial: B)(f: (B,
+                                       AA) => B): T#IncrementalBehavior[B, AA]
 
-  def unionWith[B, C, AA >: A](b: T#Event[B])(f1: AA => C)(f2: B => C)(f3: (AA, B) => C): T#Event[C]
+  def unionWith[B, C, AA >: A](b: T#Event[B])(f1: AA => C)(f2: B => C)(
+      f3: (AA, B) => C): T#Event[C]
 
   def collect[B, AA >: A](fb: A => Option[B]): T#Event[B]
 

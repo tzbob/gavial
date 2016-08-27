@@ -12,7 +12,8 @@ trait Behavior[T <: Tier, A] {
 
   def map2[B, C](b: T#Behavior[B])(f: (A, B) => C): T#Behavior[C]
 
-  def map3[B, C, D](b: T#Behavior[B], c: T#Behavior[C])(f: (A, B, C) => D): T#Behavior[D]
+  def map3[B, C, D](b: T#Behavior[B], c: T#Behavior[C])(
+      f: (A, B, C) => D): T#Behavior[D]
 
   def sampledBy(ev: T#Event[_]): T#Event[A]
 }

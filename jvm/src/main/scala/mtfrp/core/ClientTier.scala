@@ -13,14 +13,15 @@ class ClientBehavior[A] private[core] (graph: ReplicationGraph)
     extends MockBehavior[ClientTier, A](graph)
 
 class ClientDiscreteBehavior[A] private[core] (
-  graph: ReplicationGraph,
-  init: A
-) extends MockDiscreteBehavior[ClientTier, A](init, graph)
+    graph: ReplicationGraph,
+    initial: A
+) extends MockDiscreteBehavior[ClientTier, A](graph, initial)
 
 class ClientIncBehavior[A, DeltaA] private[core] (
-  graph: ReplicationGraph,
-  init: A
-) extends MockIncBehavior[ClientTier, A, DeltaA](init, graph)
+    graph: ReplicationGraph,
+    accumulator: (A, DeltaA) => A,
+    initial: A
+) extends MockIncBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
 
 final class ClientTier extends MockTier with ClientTierLike {
   type T = ClientTier

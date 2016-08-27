@@ -2,6 +2,17 @@ package mtfrp
 package core
 
 import hokko.{core => HC}
+import io.circe._
+
+case class ExitData(
+    event: HC.Event[Client => Seq[Message]],
+    behavior: HC.Behavior[Client => Seq[Message]]
+)
+
+case class InputEventRouter(inputs: Map[Int, HC.EventSource[_]])
+
+///////////////////////////////////////////////
+///////////////////////////////////////////////
 
 sealed trait ReplicationGraph {
   def combine(graph: ReplicationGraph): ReplicationGraph =
@@ -10,28 +21,69 @@ sealed trait ReplicationGraph {
     combine(graph)
 }
 
-case class ExitEvent[A](event: HC.Event[A])
-case class ExitBehavior[A, DeltaA](behavior: HC.IncrementalBehavior[A, DeltaA])
-
-case class InputEvent[A](event: HC.EventSource[A])
-
 object ReplicationGraph {
-  def exitEvents(graph: ReplicationGraph): List[ExitEvent[_]] = {
-    ReplicationGraph.toList(graph).collect {
-      case SenderEvent(event, _) => ExitEvent(event)
+  type Pulse      = (HC.EventSource[T], T) forSome { type T }
+  type PulseMaker = Message => Option[Pulse]
+
+  def exitEvent(
+      graph: List[ReplicationGraph]
+  ): HC.Event[Client => Seq[Message]] = {
+    // all senders that should be added to the exit event (events and deltas)
+    val senders = graph.collect {
+      case s: SenderEvent[_]       => s.message
+      case s: SenderBehavior[_, _] => s.deltaSender.message
     }
+
+    val mergedSenders = HC.Event.merge(senders.to[Seq])
+
+    val mergedSendersOneClient = mergedSenders.map { evfs => (c: Client) =>
+      // make a client function that finds all messages
+      evfs.map { evf =>
+        evf(c)
+      }.flatten
+    }
+    mergedSendersOneClient
   }
 
-  def exitBehaviors(graph: ReplicationGraph): List[ExitBehavior[_, _]] = {
-    ReplicationGraph.toList(graph).collect {
-      case SenderBehavior(beh, _) => ExitBehavior(beh)
+  def exitBehavior(
+      graph: List[ReplicationGraph]
+  ): HC.Behavior[Client => Seq[Message]] = {
+    // all senders that should be added to the exit behavior
+    val senders = graph.collect {
+      case s: SenderBehavior[_, _] => s.message
     }
+
+    val mergedSenders =
+      senders.foldLeft(HC.Behavior.constant(List.empty[Client => Message])) {
+        (accB, newB) =>
+          accB.map2(newB)(_ :+ _)
+      }
+
+    val mergedSendersOneClient = mergedSenders.map { evfs => (c: Client) =>
+      // make a client function that finds all messages
+      evfs.map { evf =>
+        evf(c)
+    }
+    }
+    mergedSendersOneClient
   }
 
-  def inputEvents(graph: ReplicationGraph): List[InputEvent[_]] = {
-    ReplicationGraph.toList(graph).collect {
-      case ReceiverEvent(source, _) => InputEvent(source)
-    }
+  def exitData(graph: ReplicationGraph): ExitData = {
+    // all senders that should be added to the exit event (events and deltas)
+    val graphList = ReplicationGraph.toList(graph)
+    ExitData(exitEvent(graphList), exitBehavior(graphList))
+  }
+
+  def inputEventRouter(graph: ReplicationGraph): PulseMaker = {
+    val receivers: Map[Int, PulseMaker] = ReplicationGraph
+      .toList(graph)
+      .collect {
+        case r: ReceiverEvent[_] => (r.token, r.pulse _)
+      }
+      .toMap
+
+    (msg: Message) =>
+      receivers(msg.id)(msg)
   }
 
   private def toList(graph: ReplicationGraph): List[ReplicationGraph] = {
@@ -49,53 +101,79 @@ object ReplicationGraph {
   def combine(graphs: Seq[ReplicationGraph]): ReplicationGraph =
     ReplicationGraph.Combined(graphs)
 
-  def eventSender[A](dep: ReplicationGraph, evt: HC.Event[Client => Option[A]]): ReplicationGraph =
+  def eventSender[A: Encoder](
+      dep: ReplicationGraph,
+      evt: HC.Event[Client => Option[A]]
+  ): ReplicationGraph =
     ReplicationGraph.SenderEvent(evt, dep)
 
-  def behaviorSender[A, DeltaA](
-    dep: ReplicationGraph,
-    beh: HC.IncrementalBehavior[Client => A, Client => Option[DeltaA]]
+  def behaviorSender[A: Encoder, DeltaA: Encoder](
+      dep: ReplicationGraph,
+      beh: HC.IncrementalBehavior[Client => A, Client => Option[DeltaA]]
   ): ReplicationGraph =
     ReplicationGraph.SenderBehavior(beh, dep)
 
-  def eventReceiver[A](dep: ReplicationGraph, evt: HC.EventSource[A]): ReplicationGraph =
+  def eventReceiver[A: Decoder](
+      dep: ReplicationGraph,
+      evt: HC.EventSource[A]
+  ): ReplicationGraph =
     ReplicationGraph.ReceiverEvent(evt, dep)
 
   def behaviorReceiver[A, DeltaA](
-    dep: ReplicationGraph,
-    // TODO
-    folder: HC.EventSource[Any]
+      dep: ReplicationGraph,
+      // TODO
+      deltas: HC.EventSource[DeltaA],
+      resets: HC.EventSource[A]
   ): ReplicationGraph =
-    ReplicationGraph.ReceiverBehavior(folder, dep)
+    ReplicationGraph.ReceiverBehavior(deltas, resets, dep)
 
   case object start extends ReplicationGraph
 
-  sealed trait HasDependency extends ReplicationGraph {
+  sealed trait HasDependency extends ReplicationGraph with HasToken {
     val dependency: ReplicationGraph
   }
 
   private case class Combined(
-    nodes: Seq[ReplicationGraph]
+      nodes: Seq[ReplicationGraph]
   ) extends ReplicationGraph
 
-  private case class ReceiverEvent[A](
-    source: HC.EventSource[A],
-    dependency: ReplicationGraph
-  ) extends ReplicationGraph with HasDependency
+  private case class ReceiverEvent[A: Decoder](
+      source: HC.EventSource[A],
+      dependency: ReplicationGraph
+  ) extends ReplicationGraph
+      with HasDependency {
+    def pulse(msg: Message): Option[Pulse] = {
+      val decoded = msg.payload.as[A]
+      decoded.toOption.map(source.->)
+    }
+  }
 
   private case class ReceiverBehavior[A, DeltaA](
-    // TODO
-    folder: HC.EventSource[Any],
-    dependency: ReplicationGraph
-  ) extends ReplicationGraph with HasDependency
+      // TODO
+      deltas: HC.EventSource[DeltaA],
+      resets: HC.EventSource[A],
+      dependency: ReplicationGraph
+  ) extends ReplicationGraph
+      with HasDependency
 
-  private case class SenderEvent[A](
-    event: HC.Event[Client => Option[A]],
-    dependency: ReplicationGraph
-  ) extends ReplicationGraph with HasDependency
+  private case class SenderEvent[A: Encoder](
+      event: HC.Event[Client => Option[A]],
+      dependency: ReplicationGraph
+  ) extends ReplicationGraph
+      with HasDependency {
+    val message = event.map { evf => c: Client =>
+      evf(c).map(Message.fromPayload(this.token))
+    }
+  }
 
-  private case class SenderBehavior[A, DeltaA](
-    event: HC.IncrementalBehavior[A, DeltaA],
-    dependency: ReplicationGraph
-  ) extends ReplicationGraph with HasDependency
+  private case class SenderBehavior[A: Encoder, DeltaA: Encoder](
+      behavior: HC.IncrementalBehavior[Client => A, Client => Option[DeltaA]],
+      dependency: ReplicationGraph
+  ) extends ReplicationGraph
+      with HasDependency {
+    val deltaSender = SenderEvent(behavior.deltas, dependency)
+    val message = behavior.map { evf => c: Client =>
+      Message.fromPayload(this.token)(evf(c))
+    }
+  }
 }

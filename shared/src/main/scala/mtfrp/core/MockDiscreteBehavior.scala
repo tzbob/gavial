@@ -4,10 +4,11 @@ package core
 import hokko.core
 
 class MockDiscreteBehavior[T <: MockTier: MockBuilder, A](
-  private[core] val initial: A,
-  graph: ReplicationGraph
+    graph: ReplicationGraph,
+    private[core] val initial: A
 )(implicit hokkoBuilder: HokkoBuilder[T#Replicated])
-  extends MockBehavior[T, A](graph) with DiscreteBehavior[T, A] {
+    extends MockBehavior[T, A](graph)
+    with DiscreteBehavior[T, A] {
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
@@ -17,23 +18,23 @@ class MockDiscreteBehavior[T <: MockTier: MockBuilder, A](
   def discreteMap[B](f: A => B): T#DiscreteBehavior[B] =
     mockBuilder.discreteBehavior(graph, f(initial))
 
-  def discreteMap2[B, C](b: T#DiscreteBehavior[B])(f: (A, B) => C): T#DiscreteBehavior[C] =
+  def discreteMap2[B, C](b: T#DiscreteBehavior[B])(
+      f: (A, B) => C): T#DiscreteBehavior[C] =
     mockBuilder.discreteBehavior(graph + b.graph, f(initial, b.initial))
 
-  def discreteMap3[B, C, D](b: T#DiscreteBehavior[B], c: T#DiscreteBehavior[C])(f: (A, B, C) => D): T#DiscreteBehavior[D] =
-    mockBuilder.discreteBehavior(graph + b.graph + c.graph, f(initial, b.initial, c.initial))
+  def discreteMap3[B, C, D](
+      b: T#DiscreteBehavior[B],
+      c: T#DiscreteBehavior[C])(f: (A, B, C) => D): T#DiscreteBehavior[D] =
+    mockBuilder.discreteBehavior(graph + b.graph + c.graph,
+                                 f(initial, b.initial, c.initial))
 
-  def discreteReverseApply[B, AA >: A](fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B] =
+  def discreteReverseApply[B, AA >: A](
+      fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B] =
     mockBuilder.discreteBehavior(graph + fb.graph, fb.initial(initial))
-
-  def withDeltas[DeltaA, AA >: A](init: AA, deltas: T#Event[DeltaA]): T#IncrementalBehavior[AA, DeltaA] =
-    mockBuilder.incrementalBehavior(graph + deltas.graph, init)
-
-  // TODO
-  def getInit: A = initial
 }
 
-abstract class MockDiscreteBehaviorOps[T <: MockTier: MockBuilder] {
+abstract class MockDiscreteBehaviorOps[T <: MockTier: MockBuilder]
+    extends DiscreteBehaviorObject[T] {
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
   def constant[A](x: A): T#DiscreteBehavior[A] =

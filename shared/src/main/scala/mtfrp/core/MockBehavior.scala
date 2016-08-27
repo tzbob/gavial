@@ -4,8 +4,9 @@ package core
 import hokko.core
 
 class MockBehavior[T <: MockTier: MockBuilder, A](
-  private[core] val graph: ReplicationGraph
-)(implicit hokkoBuilder: HokkoBuilder[T#Replicated]) extends Behavior[T, A] {
+    private[core] val graph: ReplicationGraph
+)(implicit hokkoBuilder: HokkoBuilder[T#Replicated])
+    extends Behavior[T, A] {
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
@@ -15,7 +16,8 @@ class MockBehavior[T <: MockTier: MockBuilder, A](
   def map2[B, C](b: T#Behavior[B])(f: (A, B) => C): T#Behavior[C] =
     mockBuilder.behavior(graph + b.graph)
 
-  def map3[B, C, D](b: T#Behavior[B], c: T#Behavior[C])(f: (A, B, C) => D): T#Behavior[D] =
+  def map3[B, C, D](b: T#Behavior[B], c: T#Behavior[C])(
+      f: (A, B, C) => D): T#Behavior[D] =
     mockBuilder.behavior(graph + b.graph + c.graph)
 
   def reverseApply[B, AA >: A](fb: T#Behavior[AA => B]): T#Behavior[B] =
@@ -29,7 +31,8 @@ class MockBehavior[T <: MockTier: MockBuilder, A](
 
 }
 
-abstract class MockBehaviorOps[T <: MockTier: MockBuilder] {
+abstract class MockBehaviorOps[T <: MockTier: MockBuilder]
+    extends BehaviorObject[T] {
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
   def constant[A](x: A): T#Behavior[A] =

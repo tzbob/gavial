@@ -15,15 +15,17 @@ trait HokkoTier extends Tier {
 
 trait HokkoBuilder[T <: HokkoTier] {
   def event[A](rep: core.Event[A], graph: ReplicationGraph): T#Event[A]
-  def behavior[A](rep: core.Behavior[A], graph: ReplicationGraph): T#Behavior[A]
+  def behavior[A](rep: core.Behavior[A],
+                  graph: ReplicationGraph): T#Behavior[A]
   def discreteBehavior[A](
-    rep: core.DiscreteBehavior[A],
-    initial: A,
-    graph: ReplicationGraph
+      rep: core.DiscreteBehavior[A],
+      initial: A,
+      graph: ReplicationGraph
   ): T#DiscreteBehavior[A]
   def incrementalBehavior[A, DeltaA](
-    rep: core.IncrementalBehavior[A, DeltaA],
-    initial: A,
-    graph: ReplicationGraph
+      rep: core.IncrementalBehavior[A, DeltaA],
+      initial: A,
+      graph: ReplicationGraph,
+      accumulator: (A, DeltaA) => A
   ): T#IncrementalBehavior[A, DeltaA]
 }
