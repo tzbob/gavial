@@ -44,9 +44,6 @@ object AppIncBehavior {
   implicit class ReplicableIBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
 
-    // TODO: Things that should be tested since this was added:
-    // 1. behaviors that are actually being reset (server and client side [DONE (somewhat)])
-    // 2. behaviors that have initial values
     def toClient(implicit da: Decoder[A],
                  dda: Decoder[DeltaA],
                  ea: Encoder[A],

@@ -53,7 +53,6 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
         range.map(x => ServerSentEvent(x.toString, "updates"))
 
       val result = Await.result(future, 100.millis)
-      assert(result !== Range(1, 3))
       assert(result === expectedResult)
     }
 
@@ -76,7 +75,6 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
       val expectedResult = Seq(ServerSentEvent(init.toString, "resets"))
 
       val result = Await.result(future, 100.millis)
-      assert(result !== Range(1, 3))
       assert(result === expectedResult)
     }
 
