@@ -20,34 +20,36 @@ object RouteCreator {
   import EventStreamMarshalling._
 
   type SourceQueue[A] = SourceQueueWithComplete[A]
+  type SseQueue       = SourceQueue[ServerSentEvent]
+  type SseSource[A]   = Source[ServerSentEvent, A]
 
-  def buildExitRoute[A](source: Source[Seq[Message], A])(
-      onConnect: (Client, Source[Seq[Message], A]) => Source[Seq[Message], A])
-    : Route = {
+  def buildExitRoute[A](source: SseSource[A])(
+      onConnect: (Client, SseSource[A]) => SseSource[A]): Route = {
     // FIXME: Is this escaped? How?
     path("events" / JavaUUID) { cuuid =>
       pathEnd {
         get {
           complete {
             val cid = Client(cuuid)
-            onConnect(cid, source)
-              .map(messages => ServerSentEvent(messages.asJson.noSpaces))
-              .keepAlive(10.second, () => ServerSentEvent.Heartbeat)
+            onConnect(cid, source).keepAlive(10.second,
+                                             () => ServerSentEvent.Heartbeat)
           }
         }
       }
     }
   }
 
-  def queueEvent[A](event: HC.Event[Client => A], engine: HC.Engine)(
+  def queueUpdates[A: Encoder](event: HC.Event[Client => A], engine: HC.Engine)(
       client: Client,
-      source: Source[A, SourceQueue[A]]): Source[A, SourceQueue[A]] = {
-    source.mapMaterializedValue { (queue: SourceQueue[A]) =>
+      source: SseSource[SseQueue]): SseSource[SseQueue] = {
+    source.mapMaterializedValue { queue =>
       val subscription = engine.subscribeForPulses { pulses =>
         val pulse = pulses(event)
         pulse.foreach { cf =>
+          val messages = cf(client)
+          val sse      = ServerSentEvent(messages.asJson.noSpaces, "updates")
           // FIXME: log failures
-          queue.offer(cf(client))
+          queue.offer(sse)
         }
       }
 
@@ -61,11 +63,32 @@ object RouteCreator {
     }
   }
 
+  def queueResets[A: Encoder](beh: HC.Behavior[Client => A],
+                              engine: HC.Engine)(
+      client: Client,
+      source: SseSource[SseQueue]): SseSource[SseQueue] = {
+    source.mapMaterializedValue { queue =>
+      val currentValues = engine.askCurrentValues()
+      val initials      = currentValues(beh)
+      initials.foreach { cf =>
+        val messages = cf(client)
+        val sse      = ServerSentEvent(messages.asJson.noSpaces, "resets")
+        // FIXME: log failures
+        queue.offer(sse)
+      }
+
+      queue
+    }
+  }
+
   def exitRoute(exit: ExitData)(engine: HC.Engine): Route = {
     val queueSize = Int.MaxValue // FIXME: pick something sensible
-    val src = Source.queue[Seq[Message]](queueSize, OverflowStrategy.fail)
+    val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
 
-    buildExitRoute(src)(queueEvent(exit.event, engine))
+    buildExitRoute(src) { (client, source) =>
+      val src = queueResets(exit.behavior, engine)(client, source)
+      queueUpdates(exit.event, engine)(client, src)
+    }
   }
 
   //   def notify(change: ClientChange) =

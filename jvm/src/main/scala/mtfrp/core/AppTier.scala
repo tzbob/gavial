@@ -23,7 +23,7 @@ object AppEvent {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val mockBuilder = implicitly[MockBuilder[ClientTier]]
       val source      = core.Event.source[A]
-      val newGraph    = ReplicationGraph.eventSender(appEv.graph, appEv.rep)
+      val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
       mockBuilder.event(newGraph)
     }
   }
@@ -51,6 +51,7 @@ class AppIncBehavior[A, DeltaA] private[core] (
                                                  accumulator)
 
 object AppIncBehavior {
+
   implicit class ReplicableIBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
     def toClient(implicit da: Decoder[A],
@@ -58,9 +59,14 @@ object AppIncBehavior {
                  ea: Encoder[A],
                  eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
       val mockBuilder = implicitly[MockBuilder[ClientTier]]
-      val newGraph    = ReplicationGraph.behaviorSender(appBeh.graph, appBeh.rep)
-      // FIXME: ??? is bootstrapping
-      mockBuilder.incrementalBehavior(newGraph, ???, ???)
+      val newGraph    = ReplicationGraphServer.SenderBehavior(appBeh.rep, appBeh.graph)
+
+      val accumulator = IncrementalBehavior.transform(appBeh.accumulator)
+      // Create the initial value by evaluating the function with a fresh client
+      val initialFromFreshClient = appBeh.initial(ClientGenerator.fresh)
+
+      mockBuilder
+        .incrementalBehavior(newGraph, accumulator, initialFromFreshClient)
     }
   }
 }

@@ -9,6 +9,13 @@ package mtfrp.core {
   import scalatags.Text.all._
 
   object MyApp extends MyMain {
+
+
+    // 1: HTML Pre-render on the server from ClientBehavior.initial
+    // 2: Insert 'newest' values for the client, use these as initials for ClientBehaviors & redraw! (skippable)
+    // 3: Wait for actual newest values from the server and redraw again (application is now usable!)
+
+
     // val ev: AppEvent[Client => Option[String]] = AppEvent.empty
     // val behavior: AppIncBehavior[Client => String, Client => Option[String]] = ev.fold((c: Client) => "") {
     //   (f1, f2) => c: Client => f1(c) + f2(c).getOrElse("")

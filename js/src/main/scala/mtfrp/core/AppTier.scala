@@ -38,28 +38,15 @@ class AppIncBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A,
     initial: A
-) extends MockIncBehavior[AppTier, A, DeltaA](graph, accumulator, initial) {
-  def client: Client = ???
-}
+) extends MockIncBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
 
 object AppIncBehavior {
   implicit class ReplicableIBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
 
-    // FIXME: find a good spot for this
-    def transform[X, Y](
-        f: (Client => X, Client => Option[Y]) => (Client => X)
-    ): (X, Y) => X = { (x, y) =>
-      val xf      = (_: Client) => x
-      val yf      = (_: Client) => (Some(y): Option[Y])
-      val resultF = f(xf, yf)
-      resultF(null) // this is fine | we want this to blow up if it gets used
-    }
-
     // TODO: Things that should be tested since this was added:
     // 1. behaviors that are actually being reset (server and client side [DONE (somewhat)])
     // 2. behaviors that have initial values
-
     def toClient(implicit da: Decoder[A],
                  dda: Decoder[DeltaA],
                  ea: Encoder[A],
@@ -80,11 +67,12 @@ object AppIncBehavior {
 
       // FIXME: this is the initial value on clients before the application works,
       // we should do something smart here
-      //   1. use the latest value on the server  (- include it in the html or js or something) (+ state is minimally inconsistent)
-      //   2. use the initial server values (- state is severely inconsistent) (- add initial values to everything / needed anyway!) [DONE]
-      val init: A = appBeh.initial(appBeh.client)
+      //   1. use the latest value on the server [TODO]
+      //   2. use the initial server values [DONE]
+      val init: A = appBeh.initial(ClientGenerator.static)
 
-      val transformedAccumulator = transform(appBeh.accumulator)
+      val transformedAccumulator =
+        IncrementalBehavior.transform(appBeh.accumulator)
 
       val replicatedBehavior = union.fold(init) { (acc, n) =>
         n match {

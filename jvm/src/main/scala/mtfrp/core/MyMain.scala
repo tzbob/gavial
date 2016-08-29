@@ -13,7 +13,7 @@ trait MyMain extends FrpMain {
   import scalatags.Text.all._
 
   def main(args: Array[String]): Unit = {
-    val exit = ReplicationGraph.exitData(ui.graph)
+    val exit = new ReplicationGraphServer(ui.graph).exitData
     val engine = HC.Engine.compile(Seq(exit.event), Nil)
 
     val route = RouteCreator.exitRoute(exit)(engine)

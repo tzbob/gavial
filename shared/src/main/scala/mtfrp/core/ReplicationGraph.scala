@@ -25,55 +25,6 @@ object ReplicationGraph {
   type Pulse      = (HC.EventSource[T], T) forSome { type T }
   type PulseMaker = Message => Option[Pulse]
 
-  def exitEvent(
-      graph: List[ReplicationGraph]
-  ): HC.Event[Client => Seq[Message]] = {
-    // all senders that should be added to the exit event (events and deltas)
-    val senders = graph.collect {
-      case s: SenderEvent[_]       => s.message
-      case s: SenderBehavior[_, _] => s.deltaSender.message
-    }
-
-    val mergedSenders = HC.Event.merge(senders.to[Seq])
-
-    val mergedSendersOneClient = mergedSenders.map { evfs => (c: Client) =>
-      // make a client function that finds all messages
-      evfs.map { evf =>
-        evf(c)
-      }.flatten
-    }
-    mergedSendersOneClient
-  }
-
-  def exitBehavior(
-      graph: List[ReplicationGraph]
-  ): HC.Behavior[Client => Seq[Message]] = {
-    // all senders that should be added to the exit behavior
-    val senders = graph.collect {
-      case s: SenderBehavior[_, _] => s.message
-    }
-
-    val mergedSenders =
-      senders.foldLeft(HC.Behavior.constant(List.empty[Client => Message])) {
-        (accB, newB) =>
-          accB.map2(newB)(_ :+ _)
-      }
-
-    val mergedSendersOneClient = mergedSenders.map { evfs => (c: Client) =>
-      // make a client function that finds all messages
-      evfs.map { evf =>
-        evf(c)
-    }
-    }
-    mergedSendersOneClient
-  }
-
-  def exitData(graph: ReplicationGraph): ExitData = {
-    // all senders that should be added to the exit event (events and deltas)
-    val graphList = ReplicationGraph.toList(graph)
-    ExitData(exitEvent(graphList), exitBehavior(graphList))
-  }
-
   def inputEventRouter(graph: ReplicationGraph): PulseMaker = {
     val receivers: Map[Int, PulseMaker] = ReplicationGraph
       .toList(graph)
@@ -86,7 +37,7 @@ object ReplicationGraph {
       receivers(msg.id)(msg)
   }
 
-  private def toList(graph: ReplicationGraph): List[ReplicationGraph] = {
+  private[core] def toList(graph: ReplicationGraph): List[ReplicationGraph] = {
     val rest = graph match {
       case `start` =>
         Nil
@@ -100,18 +51,6 @@ object ReplicationGraph {
 
   def combine(graphs: Seq[ReplicationGraph]): ReplicationGraph =
     ReplicationGraph.Combined(graphs)
-
-  def eventSender[A: Encoder](
-      dep: ReplicationGraph,
-      evt: HC.Event[Client => Option[A]]
-  ): ReplicationGraph =
-    ReplicationGraph.SenderEvent(evt, dep)
-
-  def behaviorSender[A: Encoder, DeltaA: Encoder](
-      dep: ReplicationGraph,
-      beh: HC.IncrementalBehavior[Client => A, Client => Option[DeltaA]]
-  ): ReplicationGraph =
-    ReplicationGraph.SenderBehavior(beh, dep)
 
   def eventReceiver[A: Decoder](
       dep: ReplicationGraph,
@@ -129,7 +68,7 @@ object ReplicationGraph {
 
   case object start extends ReplicationGraph
 
-  sealed trait HasDependency extends ReplicationGraph with HasToken {
+  trait HasDependency extends ReplicationGraph with HasToken {
     val dependency: ReplicationGraph
   }
 
@@ -156,24 +95,4 @@ object ReplicationGraph {
   ) extends ReplicationGraph
       with HasDependency
 
-  private case class SenderEvent[A: Encoder](
-      event: HC.Event[Client => Option[A]],
-      dependency: ReplicationGraph
-  ) extends ReplicationGraph
-      with HasDependency {
-    val message = event.map { evf => c: Client =>
-      evf(c).map(Message.fromPayload(this.token))
-    }
-  }
-
-  private case class SenderBehavior[A: Encoder, DeltaA: Encoder](
-      behavior: HC.IncrementalBehavior[Client => A, Client => Option[DeltaA]],
-      dependency: ReplicationGraph
-  ) extends ReplicationGraph
-      with HasDependency {
-    val deltaSender = SenderEvent(behavior.deltas, dependency)
-    val message = behavior.map { evf => c: Client =>
-      Message.fromPayload(this.token)(evf(c))
-    }
-  }
 }
