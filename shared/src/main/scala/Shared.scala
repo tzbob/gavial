@@ -1,15 +1,16 @@
 package mtfrp.core {
-  import scalatags.Text.TypedTag
 
-  trait FrpMain {
-    type HTML = TypedTag[String]
+  import scalatags.generic.{Bundle, TypedTag}
+
+  trait FrpMain[Builder, Output <: FragT, FragT] {
+    val html: Bundle[Builder, Output, FragT]
+
+    type HTML = TypedTag[Builder, Output, FragT]
     def ui: ClientDiscreteBehavior[HTML]
   }
 
-  import scalatags.Text.all._
-
   object MyApp extends MyMain {
-
+    import html.all._
 
     // 1: HTML Pre-render on the server from ClientBehavior.initial
     // 2: Insert 'newest' values for the client, use these as initials for ClientBehaviors & redraw! (skippable)
@@ -27,7 +28,7 @@ package mtfrp.core {
 
     val ev: AppEvent[Client => Option[Int]] =
       AppEvent(source).map(i => (c: Client) => Some(i))
-    val ui = ev.toClient
+    val ui: ClientDiscreteBehavior[HTML] = ev.toClient
       .unionLeft(ev.toClient)
       .fold(0)(_ + _)
       .discreteMap(x => div(p(x)))

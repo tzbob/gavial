@@ -2,11 +2,16 @@ package mtfrp.core
 
 import java.util.UUID
 
-import scala.scalajs.js
 import hokko.{core => HC}
 import org.scalajs.dom.raw.{EventSource, MessageEvent}
 
-trait MyMain extends js.JSApp with FrpMain {
+import scala.scalajs.js
+import scalatags.vdom.Builder
+import scalatags.vdom.raw.VirtualDom.VTreeChild
+
+trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {
+  val html = scalatags.VDom
+
   def main(): Unit = {
     val clientId = UUID.randomUUID()
     val client   = Client(clientId)

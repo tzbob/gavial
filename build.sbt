@@ -30,7 +30,7 @@ lazy val foo = crossProject
     ),
     libraryDependencies ++= Seq(
       "hokko" %%% "hokkonat" % "0.1-SNAPSHOT",
-      "com.lihaoyi" %%% "scalatags" % "0.5.5",
+      "com.lihaoyi" %%% "scalatags" % "0.6.0",
       "com.lihaoyi" %%% "sourcecode" % "0.1.0",
       "org.scalatest" %%% "scalatest" % "3.0.0-M10" % "test"
     ) ++ Seq(
@@ -48,8 +48,12 @@ lazy val foo = crossProject
   )
   .jsSettings(
     // scalaJSUseRhino in Global := false,
+    requiresDOM := true,
     persistLauncher in Compile := true,
-    libraryDependencies ++= Seq("org.scala-js" %%% "scalajs-dom" % "0.8.2")
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % "0.9.1",
+      "be.tzbob" %%% "scalatags-vdom" % "0.1"
+    )
   )
 
 // Needed, so sbt finds the projects
