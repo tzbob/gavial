@@ -3,43 +3,39 @@ package mtfrp.core
 import java.util.UUID
 
 import hokko.{core => HC}
-import org.scalajs.dom.raw.{EventSource, MessageEvent}
+import org.scalajs.dom
 
 import scala.scalajs.js
 import scalatags.vdom.Builder
+import scalatags.vdom.raw.{VText, VirtualDom}
 import scalatags.vdom.raw.VirtualDom.VTreeChild
 
 trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {
   val html = scalatags.VDom
 
   def main(): Unit = {
-    val clientId = UUID.randomUUID()
-    val client   = Client(clientId)
+    val clientId = ClientGenerator.static.id
 
-    val engine = HC.Engine.compile(Nil, Seq(ui.rep))
-    val listener = new EventListener {
-      private[this] var eventSource: EventSource = null
-      def stop() =
-        if (eventSource != null) eventSource.close()
-
-      override def restart(url: String,
-                           handlers: Map[String, (String) => Unit]): Unit = {
-        stop()
-
-        eventSource = new EventSource(url)
-        handlers.foreach {
-          case (msg, handler) =>
-            eventSource.addEventListener(
-              msg,
-              (_: MessageEvent).data.asInstanceOf[String])
-        }
-      }
-    }
+    val engine   = HC.Engine.compile(Nil, Seq(ui.rep))
+    val listener = new SseEventListener
 
     val receiver = new EventReceiver(ui.graph, engine, listener)
     receiver.restart(s"/events/$clientId")
 
-    val currentUi = engine.askCurrentValues()(ui.rep)
-    println(currentUi.get)
+    val initialVDom = engine.askCurrentValues()(ui.rep)
+
+    val mtfrpContent = dom.document.getElementById("mtfrp-content")
+    val domPatcherOpt =
+      initialVDom.map(v => new DomPatcher(v.render, Some(mtfrpContent)))
+
+    // FIXME: Log if there is no patcher
+    domPatcherOpt.foreach { domPatcher =>
+      engine.subscribeForPulses { pulses =>
+        val newVDomOpt = pulses(ui.rep.changes).map(_.render)
+        newVDomOpt.foreach { newVDom =>
+          domPatcher.applyNewState(newVDom)
+        }
+      }
+    }
   }
 }

@@ -15,7 +15,6 @@ import scalatags.text.Builder
 
 trait MyMain extends FrpMain[Builder, String, String] {
   val html = scalatags.Text
-  import html.all._
 
   def main(args: Array[String]): Unit = {
     val renderedHtml = ui.initial
@@ -52,15 +51,17 @@ trait MyMain extends FrpMain[Builder, String, String] {
     getFromResourceDirectory("")
   }
 
+  import html.all._
   def createIndex(content: HTML): Route = {
     path("") {
       get {
         val rawHtml = html.tags.html(
           head(
+            script(src := "resources/foo-jsdeps.js"),
             script(src := "resources/foo-fastopt.js"),
             script(src := "resources/foo-launcher.js")
           ),
-          body(content)
+          body(id := "mtfrp-content", content)
         )
         complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, rawHtml.render))
       }

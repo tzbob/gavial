@@ -47,12 +47,13 @@ lazy val foo = crossProject
     )
   )
   .jsSettings(
-    // scalaJSUseRhino in Global := false,
-    requiresDOM := true,
+    scalaJSUseRhino in Global := false,
     persistLauncher in Compile := true,
+    persistLauncher in Test := false,
+    jsDependencies += RuntimeDOM,
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "0.9.1",
-      "be.tzbob" %%% "scalatags-vdom" % "0.1"
+      "be.tzbob" %%% "scalatags-vdom" % "0.2-SNAPSHOT"
     )
   )
 
@@ -60,6 +61,7 @@ lazy val foo = crossProject
 lazy val fooJS = foo.js
 
 lazy val fooJVM = foo.jvm.settings(
+  resources in Compile += (packageJSDependencies in fooJS in Compile).value,
   resources in Compile += (fastOptJS in fooJS in Compile).value.data,
   resources in Compile += (packageScalaJSLauncher in fooJS in Compile).value.data
 )
