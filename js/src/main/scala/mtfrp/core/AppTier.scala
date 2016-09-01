@@ -20,7 +20,7 @@ object AppEvent {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
       val source       = core.Event.source[A]
-      val newGraph     = ReplicationGraph.eventReceiver(appEv.graph, source)
+      val newGraph     = ReplicationGraphClient.ReceiverEvent(source, appEv.graph)
       hokkoBuilder.event(source, newGraph)
     }
   }
@@ -55,7 +55,7 @@ object AppIncBehavior {
       val resets = core.Event.source[A]
 
       val newGraph =
-        ReplicationGraph.behaviorReceiver(appBeh.graph, deltas, resets)
+        ReplicationGraphClient.ReceiverBehavior(deltas, resets, appBeh.graph)
 
       val union =
         deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right) { (l, r) =>

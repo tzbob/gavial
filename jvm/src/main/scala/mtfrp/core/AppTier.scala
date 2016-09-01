@@ -19,7 +19,7 @@ object AppEvent {
   def empty[A]: AppEvent[A] =
     new AppEvent(core.Event.source[A], ReplicationGraph.start)
 
-  implicit class ReplicableEvent[A](appEv: AppEvent[Client => Option[A]]) {
+  implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val mockBuilder = implicitly[MockBuilder[ClientTier]]
       val source      = core.Event.source[A]
@@ -51,8 +51,7 @@ class AppIncBehavior[A, DeltaA] private[core] (
                                                  accumulator)
 
 object AppIncBehavior {
-
-  implicit class ReplicableIBehavior[A, DeltaA](
+  implicit class ToClientBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
     def toClient(implicit da: Decoder[A],
                  dda: Decoder[DeltaA],
