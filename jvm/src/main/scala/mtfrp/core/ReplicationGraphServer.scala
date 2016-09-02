@@ -51,6 +51,7 @@ class ReplicationGraphServer(graph: ReplicationGraph) {
 }
 
 object ReplicationGraphServer {
+
   case class SenderEvent[A: Encoder](
       event: HC.Event[Client => Option[A]],
       dependency: ReplicationGraph

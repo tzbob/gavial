@@ -2,7 +2,6 @@ package mtfrp
 package core
 
 import hokko.{core => HC}
-import io.circe._
 
 class MockIncBehavior[T <: MockTier: MockBuilder, A, DeltaA](
     graph: ReplicationGraph,

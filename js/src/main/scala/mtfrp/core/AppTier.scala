@@ -68,7 +68,7 @@ object AppIncBehavior {
       val init: A = appBeh.initial(ClientGenerator.static)
 
       val transformedAccumulator =
-        IncrementalBehavior.transform(appBeh.accumulator)
+        IncrementalBehavior.transformToNormal(appBeh.accumulator)
 
       val replicatedBehavior = union.fold(init) { (acc, n) =>
         n match {

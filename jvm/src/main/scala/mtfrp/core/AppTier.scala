@@ -60,7 +60,7 @@ object AppIncBehavior {
       val mockBuilder = implicitly[MockBuilder[ClientTier]]
       val newGraph    = ReplicationGraphServer.SenderBehavior(appBeh.rep, appBeh.graph)
 
-      val accumulator = IncrementalBehavior.transform(appBeh.accumulator)
+      val accumulator = IncrementalBehavior.transformToNormal(appBeh.accumulator)
       // Create the initial value by evaluating the function with a fresh client
       val initialFromFreshClient = appBeh.initial(ClientGenerator.fresh)
 
