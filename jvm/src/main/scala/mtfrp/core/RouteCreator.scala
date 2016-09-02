@@ -22,8 +22,8 @@ object RouteCreator {
 
   def buildExitRoute[A](source: SseSource[A])(
       onConnect: (Client, SseSource[A]) => SseSource[A]): Route = {
-    // FIXME: Is this escaped? How?
-    path("events" / JavaUUID) { cuuid =>
+    // FIXME: Is this escaped? How?, factor our 'events' string
+    path(Names.exitUpdates / JavaUUID) { cuuid =>
       pathEnd {
         get {
           complete {
@@ -44,7 +44,7 @@ object RouteCreator {
         val pulse = pulses(event)
         pulse.foreach { cf =>
           val messages = cf(client)
-          val sse      = ServerSentEvent(messages.asJson.noSpaces, "updates")
+          val sse      = ServerSentEvent(messages.asJson.noSpaces, Names.Sse.update)
           // FIXME: log failures
           queue.offer(sse)
         }
@@ -69,7 +69,7 @@ object RouteCreator {
       val initials      = currentValues(beh)
       initials.foreach { cf =>
         val messages = cf(client)
-        val sse      = ServerSentEvent(messages.asJson.noSpaces, "resets")
+        val sse      = ServerSentEvent(messages.asJson.noSpaces, Names.Sse.reset)
         // FIXME: log failures
         queue.offer(sse)
       }
@@ -87,6 +87,7 @@ object RouteCreator {
       queueUpdates(exit.event, engine)(client, src)
     }
   }
+
 
   //   def notify(change: ClientChange) =
   //     engine.fire(Seq(clientStatus -> change))

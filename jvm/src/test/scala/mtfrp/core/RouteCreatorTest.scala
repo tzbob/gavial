@@ -27,7 +27,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
         src
       }
 
-      Get(s"/events/${client0.id.toString}") ~> route ~> check {
+      Get(s"/${Names.exitUpdates}/${client0.id.toString}") ~> route ~> check {
         assert(status === StatusCodes.OK)
       }
     }
@@ -50,7 +50,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
       }
 
       val expectedResult =
-        range.map(x => ServerSentEvent(x.toString, "updates"))
+        range.map(x => ServerSentEvent(x.toString, Names.Sse.update))
 
       val result = Await.result(future, 100.millis)
       assert(result === expectedResult)
@@ -72,7 +72,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
 
       val future = mappedSrc.grouped(1).runWith(Sink.head)
 
-      val expectedResult = Seq(ServerSentEvent(init.toString, "resets"))
+      val expectedResult = Seq(ServerSentEvent(init.toString, Names.Sse.reset))
 
       val result = Await.result(future, 100.millis)
       assert(result === expectedResult)
@@ -90,7 +90,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
         s
       }
 
-      Get(s"/events/${client0.id}") ~> route ~> check {
+      Get(s"/${Names.exitUpdates}/${client0.id}") ~> route ~> check {
         assert(status === StatusCodes.OK)
 
         val events = responseAs[Source[ServerSentEvent, Any]]

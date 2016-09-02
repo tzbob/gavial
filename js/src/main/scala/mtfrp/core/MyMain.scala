@@ -17,7 +17,7 @@ trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {
     val listener = new SseEventListener
 
     val receiver = new EventReceiver(ui.graph, engine, listener)
-    receiver.restart(s"/events/$clientId")
+    receiver.restart(s"/${Names.exitUpdates}/$clientId")
 
     val initialVDom = engine.askCurrentValues()(ui.rep)
 
