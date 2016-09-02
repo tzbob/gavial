@@ -1,4 +1,4 @@
-import sbt._
+
 
 object Version {
   val circe = "0.4.1"

@@ -1,8 +1,6 @@
 package mtfrp
 package core
 
-import io.circe._
-
 // TODO: Implement Session Events using App Events and add toClient support
 // look at SessionFRPLib
 class SessionEvent[A] private[core] (

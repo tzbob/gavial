@@ -1,10 +1,9 @@
 package mtfrp
 package core
 
+import cats.data.Xor
 import hokko.core
 import io.circe._
-
-import cats.data.Xor
 
 // Define all App types
 // Create all App constructors

@@ -1,19 +1,16 @@
 package mtfrp.core
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import java.util.UUID
-import scala.concurrent.duration._
-
 import akka.http.scaladsl.server._
 import akka.stream._
 import akka.stream.scaladsl._
 import de.heikoseeberger.akkasse._
 import hokko.{core => HC}
-
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.syntax._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 object RouteCreator {
   import Directives._

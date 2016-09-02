@@ -1,13 +1,10 @@
 package mtfrp.core
 
-import java.util.UUID
-
 import hokko.{core => HC}
 import org.scalajs.dom
 
 import scala.scalajs.js
 import scalatags.vdom.Builder
-import scalatags.vdom.raw.{VText, VirtualDom}
 import scalatags.vdom.raw.VirtualDom.VTreeChild
 
 trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {

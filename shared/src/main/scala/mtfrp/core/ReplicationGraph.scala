@@ -2,7 +2,6 @@ package mtfrp
 package core
 
 import hokko.{core => HC}
-import io.circe._
 
 case class ExitData(
     event: HC.Event[Client => Seq[Message]],

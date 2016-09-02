@@ -1,8 +1,6 @@
 package mtfrp
 package core
 
-import hokko.core
-
 trait Event[T <: Tier, A] {
   private[core] val graph: ReplicationGraph
 

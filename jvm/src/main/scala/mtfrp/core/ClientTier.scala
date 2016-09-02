@@ -1,8 +1,6 @@
 package mtfrp
 package core
 
-import hokko.core
-
 // Define all Client types
 // Create all Client constructors
 

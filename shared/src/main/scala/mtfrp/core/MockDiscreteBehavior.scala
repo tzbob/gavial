@@ -1,8 +1,6 @@
 package mtfrp
 package core
 
-import hokko.core
-
 class MockDiscreteBehavior[T <: MockTier: MockBuilder, A](
     graph: ReplicationGraph,
     private[core] val initial: A

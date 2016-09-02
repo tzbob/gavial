@@ -10,7 +10,6 @@ package mtfrp.core {
   }
 
   object MyApp extends MyMain {
-    import html.all._
 
     // 1: HTML Pre-render on the server from ClientBehavior.initial
     // 2: Insert 'newest' values for the client, use these as initials for ClientBehaviors & redraw! (skippable)
@@ -22,6 +21,8 @@ package mtfrp.core {
     //   (f1, f2) => c: Client => f1(c) + f2(c).getOrElse("")
     // }
     // val ui: ClientDiscreteBehavior[HTML] = behavior.toClient.discreteMap((x: String) => div(p(x)))
+
+    import html.all._
 
     import hokko.{core => HC}
     val source = HC.Event.source[Int]
