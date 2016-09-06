@@ -40,6 +40,7 @@ lazy val foo = crossProject
     ).map(_ % Version.circe)
   )
   .jvmSettings(
+    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "de.heikoseeberger" %% "akka-sse" % "1.8.1",
       "de.heikoseeberger" %% "akka-http-circe" % "1.8.0",

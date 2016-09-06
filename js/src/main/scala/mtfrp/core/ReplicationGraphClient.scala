@@ -2,22 +2,22 @@ package mtfrp.core
 
 import hokko.{core => HC}
 import io.circe.{Decoder, Encoder}
-import mtfrp.core.ReplicationGraph.{Pulse, PulseMaker}
+import mtfrp.core.ReplicationGraph.Pulse
 import mtfrp.core.ReplicationGraphClient.ReceiverEvent
 
 class ReplicationGraphClient(graph: ReplicationGraph) {
   val graphList = ReplicationGraph.toList(graph)
 
-  val inputEventRouter: PulseMaker = {
-    val receivers: Map[Int, PulseMaker] = graphList.collect {
+  val inputEventRouter: Message => Option[Pulse] = {
+    val receivers: Map[Int, Message => Option[Pulse]] = graphList.collect {
       case r: ReceiverEvent[_] => (r.token, r.pulse _)
     }.toMap
 
     (msg: Message) =>
-      receivers(msg.id)(msg)
+      receivers.get(msg.id).flatMap(_ apply msg)
   }
 
-  def exitEvent: HC.Event[Seq[Message]] = {
+  val exitEvent: HC.Event[Seq[Message]] = {
     // all senders that should be added to the exit event (events and deltas)
     val senders = graphList.collect {
       case s: ReplicationGraphClient.SenderEvent[_] =>

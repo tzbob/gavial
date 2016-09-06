@@ -1,9 +1,12 @@
 package mtfrp.core
 
-import akka.http.scaladsl.server._
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.{Route, _}
 import akka.stream._
 import akka.stream.scaladsl._
+import de.heikoseeberger.akkahttpcirce.CirceSupport
 import de.heikoseeberger.akkasse._
+import hokko.core.Engine
 import hokko.{core => HC}
 import io.circe._
 import io.circe.generic.auto._
@@ -13,6 +16,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 object RouteCreator {
+  import CirceSupport._
   import Directives._
   import EventStreamMarshalling._
 
@@ -20,10 +24,25 @@ object RouteCreator {
   type SseQueue       = SourceQueue[ServerSentEvent]
   type SseSource[A]   = Source[ServerSentEvent, A]
 
+  def buildInputRoute[A: Decoder](onPost: (Client, A) => Unit): Route = {
+    path(Names.toServerUpdates / JavaUUID) { cuuid =>
+      pathEnd {
+        post {
+          entity(as[A]) { values =>
+            val cid = Client(cuuid)
+            onPost(cid, values)
+            // TODO: return result in the same HttpRequest (Optimization)!
+            complete("OK")
+          }
+        }
+      }
+    }
+  }
+
   def buildExitRoute[A](source: SseSource[A])(
       onConnect: (Client, SseSource[A]) => SseSource[A]): Route = {
     // FIXME: Is this escaped? How?, factor our 'events' string
-    path(Names.exitUpdates / JavaUUID) { cuuid =>
+    path(Names.toClientUpdates / JavaUUID) { cuuid =>
       pathEnd {
         get {
           complete {
@@ -36,7 +55,8 @@ object RouteCreator {
     }
   }
 
-  def queueUpdates[A: Encoder](event: HC.Event[Client => A], engine: HC.Engine)(
+  def queueUpdates[A: Encoder](event: HC.Event[Client => A],
+                               engine: HC.Engine)(
       client: Client,
       source: SseSource[SseQueue]): SseSource[SseQueue] = {
     source.mapMaterializedValue { queue =>
@@ -77,17 +97,36 @@ object RouteCreator {
       queue
     }
   }
+}
 
-  def exitRoute(exit: ExitData)(engine: HC.Engine): Route = {
+class RouteCreator(graph: ReplicationGraph) {
+  private[this] val rgs      = new ReplicationGraphServer(graph)
+  private[this] val exitData = rgs.exitData
+  val engine: Engine         = HC.Engine.compile(Seq(exitData.event), Nil)
+
+  val exitRoute: Route = {
     val queueSize = Int.MaxValue // FIXME: pick something sensible
     val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
 
-    buildExitRoute(src) { (client, source) =>
-      val src = queueResets(exit.behavior, engine)(client, source)
-      queueUpdates(exit.event, engine)(client, src)
+    RouteCreator.buildExitRoute(src) { (client, source) =>
+      val srcFromResets =
+        RouteCreator.queueResets(exitData.behavior, engine)(client, source)
+      RouteCreator.queueUpdates(exitData.event, engine)(client, srcFromResets)
     }
   }
 
+  private[this] val inputRouter = rgs.inputEventRouter
+
+  val inputRoute: Route = {
+    RouteCreator.buildInputRoute { (client: Client, messages: Seq[Message]) =>
+      val pulses = messages.flatMap { msg =>
+        inputRouter(client, msg)
+      }
+      engine.fire(pulses)
+    }
+  }
+
+  val route: Route = exitRoute ~ inputRoute
 
   //   def notify(change: ClientChange) =
   //     engine.fire(Seq(clientStatus -> change))
@@ -95,24 +134,4 @@ object RouteCreator {
   //   def notifyClientHasConnected(cid: UUID) = notify(Connected(Client(cid)))
   //   def notifyClientHasDisconnected(cid: UUID) = notify(Disconnected(Client(cid)))
 
-  // def inputRoute[A: Decoder](engine: HC.Engine)(eventSource: HC.EventSource[Client => Seq[A]]): Route = {
-  //   get {
-  //     path("inputEvent" / JavaUUID) { cid =>
-  //       pathEnd {
-  //         post {
-  //           entity(as[Seq[A]]) { values =>
-  //             val client = Client(cid)
-
-  //             val clientData: Client => Seq[A] =
-  //               Map(client -> values).withDefaultValue(Seq.empty)
-
-  //             // Fire new value into the eventsource
-  //             engine.fire(Seq(eventSource -> clientData))
-  //             complete("OK")
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
 }

@@ -22,7 +22,6 @@ sealed trait ReplicationGraph {
 
 object ReplicationGraph {
   type Pulse      = (HC.EventSource[T], T) forSome { type T }
-  type PulseMaker = Message => Option[Pulse]
 
   private[core] def toList(graph: ReplicationGraph): List[ReplicationGraph] = {
     val rest = graph match {

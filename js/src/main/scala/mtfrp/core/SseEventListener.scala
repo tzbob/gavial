@@ -14,8 +14,11 @@ class SseEventListener extends EventListener {
     eventSource = new EventSource(url)
     handlers.foreach {
       case (msg, handler) =>
-        eventSource
-          .addEventListener(msg, (_: MessageEvent).data.asInstanceOf[String])
+        val listener = { (m: MessageEvent) =>
+          val data = m.data.asInstanceOf[String]
+          handler(data)
+        }
+        eventSource.addEventListener(msg, listener)
     }
   }
 }

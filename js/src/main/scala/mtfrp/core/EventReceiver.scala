@@ -5,27 +5,26 @@ import hokko.{core => HC}
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser._
-import mtfrp.core.ReplicationGraph.Pulse
 
-class EventReceiver(graph: ReplicationGraph,
+class EventReceiver(rgc: ReplicationGraphClient,
                     engine: HC.Engine,
                     listener: EventListener) {
-  private[this] val pulseMakers = new ReplicationGraphClient(graph).inputEventRouter
+  private[this] val pulseMakers = rgc.inputEventRouter
 
   def decodeAsPulses(
       messages: String): Xor[Error, List[ReplicationGraph.Pulse]] = {
     val messageXor = decode[List[Message]](messages)
     messageXor.map { messages =>
-      messages.map(pulseMakers).flatten // FIXME: Log when this discards things
+      val maybePulses = messages.map(pulseMakers)
+      maybePulses.flatten // FIXME: Log when this discards things
     }
   }
 
   def restart(url: String): Unit = {
-    def firePulses(pulsesXor: Xor[Error, List[Pulse]]): Unit = {
-      pulsesXor.foreach(engine.fire) // FIXME: log when there is no xor.right
+    val decodeAndFire = { (str: String) =>
+      val decoded = decodeAsPulses(str)
+      decoded.foreach(engine.fire) // FIXME: log when there is no xor.right
     }
-
-    val decodeAndFire = (decodeAsPulses _).andThen(firePulses _)
 
     listener.restart(url,
                      Map(

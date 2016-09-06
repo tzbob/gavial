@@ -1,5 +1,6 @@
 package mtfrp.core
 
+import hokko.core.Engine
 import hokko.{core => HC}
 import org.scalajs.dom
 
@@ -13,22 +14,30 @@ trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {
   def main(): Unit = {
     val clientId = ClientGenerator.static.id
 
-    val engine   = HC.Engine.compile(Nil, Seq(ui.rep))
-    val listener = new SseEventListener
+    val manager = new EventManager(ui.graph, Seq(ui.rep), Seq(ui.rep.changes))
 
-    val receiver = new EventReceiver(ui.graph, engine, listener)
-    receiver.restart(s"/${Names.exitUpdates}/$clientId")
+    manager.startReceiving(s"/${Names.toClientUpdates}/$clientId")
+    manager.startSending(s"/${Names.toServerUpdates}/$clientId")
 
-    val initialVDom = engine.askCurrentValues()(ui.rep)
+    applyHtml(manager.engine, ui.rep)
+  }
 
-    val mtfrpContent = dom.document.getElementById("mtfrp-content")
+  def applyHtml(engine: Engine, mainUi: HC.DiscreteBehavior[HTML]): Unit = {
+    val initialVDom = engine.askCurrentValues()(mainUi)
+
     val domPatcherOpt =
-      initialVDom.map(v => new DomPatcher(v.render, Some(mtfrpContent)))
+      initialVDom.map(v => new DomPatcher(v.render))
 
     // FIXME: Log if there is no patcher
     domPatcherOpt.foreach { domPatcher =>
+      def onLoad(x: Any) = {
+        val el = dom.document.getElementById("mtfrpcontent")
+        el.replaceChild(domPatcher.renderedElement, el.firstChild)
+      }
+      dom.document.addEventListener("DOMContentLoaded", onLoad _)
+
       engine.subscribeForPulses { pulses =>
-        val newVDomOpt = pulses(ui.rep.changes).map(_.render)
+        val newVDomOpt = pulses(mainUi.changes).map(_.render)
         newVDomOpt.foreach { newVDom =>
           domPatcher.applyNewState(newVDom)
         }

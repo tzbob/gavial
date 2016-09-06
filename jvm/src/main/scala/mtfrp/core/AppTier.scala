@@ -22,7 +22,6 @@ object AppEvent {
   implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val mockBuilder = implicitly[MockBuilder[ClientTier]]
-      val source      = core.Event.source[A]
       val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
       mockBuilder.event(newGraph)
     }

@@ -20,15 +20,12 @@ trait MyMain extends FrpMain[Builder, String, String] {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
 
-    val exit   = new ReplicationGraphServer(ui.graph).exitData
-    val engine = HC.Engine.compile(Seq(exit.event), Nil)
-
-    val exitRoute = RouteCreator.exitRoute(exit)(engine)
+    val routeCreator = new RouteCreator(ui.graph)
 
     implicit val system       = ActorSystem("my-system")
     implicit val materializer = ActorMaterializer()
 
-    val totalRoute    = exitRoute ~ resourceRoute ~ index
+    val totalRoute    = routeCreator.route ~ resourceRoute ~ index
     val bindingFuture = Http().bindAndHandle(totalRoute, "localhost", 8080)
 
     startServer(bindingFuture)
@@ -61,7 +58,7 @@ trait MyMain extends FrpMain[Builder, String, String] {
             script(src := "resources/foo-fastopt.js"),
             script(src := "resources/foo-launcher.js")
           ),
-          body(id := "mtfrp-content", content)
+          body(id := "mtfrpcontent", content)
         )
         complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, rawHtml.render))
       }

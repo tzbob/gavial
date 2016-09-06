@@ -2,6 +2,8 @@ package mtfrp.core
 
 import hokko.{core => HC}
 import io.circe._
+import mtfrp.core.ReplicationGraph.Pulse
+import mtfrp.core.ReplicationGraphServer.ReceiverEvent
 
 class ReplicationGraphServer(graph: ReplicationGraph) {
   val graphList = ReplicationGraph.toList(graph)
@@ -39,15 +41,23 @@ class ReplicationGraphServer(graph: ReplicationGraph) {
       }
 
     val mergedSendersOneClient = mergedSenders.map { evfs => (c: Client) =>
-      // make a client function that finds all messages
       evfs.map { evf =>
         evf(c)
-    }
+      }
     }
     mergedSendersOneClient
   }
 
   val exitData: ExitData = ExitData(exitEvent, exitBehavior)
+
+  val inputEventRouter: (Client, Message) => Option[Pulse] = {
+    val pulseMakers: Map[Int, (Client, Message) => Option[Pulse]] =
+      graphList.collect {
+        case r: ReceiverEvent[_] => (r.token, r.pulse _)
+      }.toMap
+    (c: Client, m: Message) =>
+      pulseMakers.get(m.id).flatMap(_ apply (c, m))
+  }
 }
 
 object ReplicationGraphServer {
@@ -70,4 +80,22 @@ object ReplicationGraphServer {
       Message.fromPayload(this.token)(evf(c))
     }
   }
+
+  case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)
+      extends ReplicationGraph.HasDependency {
+    val source: HC.EventSource[(Client, A)] = HC.Event.source
+
+    def pulse(c: Client, msg: Message): Option[Pulse] = {
+      val decoded = msg.payload.as[A]
+      decoded.toOption.map { a =>
+        source -> (c -> a)
+      }
+    }
+  }
+
+  case class ReceiverBehavior[A, DeltaA](dependency: ReplicationGraph)
+      extends ReplicationGraph.HasDependency {
+    val deltas: HC.EventSource[(Client, DeltaA)] = HC.Event.source
+  }
+
 }

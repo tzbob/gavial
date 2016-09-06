@@ -1,11 +1,13 @@
 package mtfrp.core
 
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.stream._
 import akka.stream.scaladsl._
 import de.heikoseeberger.akkasse._
 import hokko.{core => HC}
+import io.circe.generic.auto._
+import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.Await
@@ -16,6 +18,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
   import EventStreamUnmarshalling._
 
   "RouteCreator" must {
+
     "form proper clients on /events/{uuid}" in {
       val source = Source(List.empty)
 
@@ -27,7 +30,30 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
         src
       }
 
-      Get(s"/${Names.exitUpdates}/${client0.id.toString}") ~> route ~> check {
+      Get(s"/${Names.toClientUpdates}/${client0.id.toString}") ~> route ~> check {
+        assert(status === StatusCodes.OK)
+      }
+    }
+
+    "accept proper input events clients on /inputUpdates/{uuid}" in {
+      val client0         = ClientGenerator.fresh
+      val input: Seq[Int] = Range(1, 20)
+
+      val route = RouteCreator.buildInputRoute[Seq[Int]] { (client, data) =>
+        assert(client === client0)
+        assert(client !== ClientGenerator.fresh)
+        assert(data === input)
+        ()
+      }
+
+      val post =
+        HttpRequest(HttpMethods.POST,
+                    uri = s"/${Names.toServerUpdates}/${client0.id.toString}",
+                    entity = HttpEntity(
+                      akka.http.scaladsl.model.MediaTypes.`application/json`,
+                      input.asJson.noSpaces))
+
+      post ~> route ~> check {
         assert(status === StatusCodes.OK)
       }
     }
@@ -90,7 +116,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
         s
       }
 
-      Get(s"/${Names.exitUpdates}/${client0.id}") ~> route ~> check {
+      Get(s"/${Names.toClientUpdates}/${client0.id}") ~> route ~> check {
         assert(status === StatusCodes.OK)
 
         val events = responseAs[Source[ServerSentEvent, Any]]
