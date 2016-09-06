@@ -3,12 +3,16 @@ package mtfrp.core
 import hokko.core.Engine
 import hokko.{core => HC}
 import org.scalajs.dom
+import slogging.LazyLogging
 
 import scala.scalajs.js
 import scalatags.vdom.Builder
 import scalatags.vdom.raw.VirtualDom.VTreeChild
 
-trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {
+trait MyMain
+    extends js.JSApp
+    with FrpMain[Builder, VTreeChild, VTreeChild]
+    with LazyLogging {
   val html = scalatags.VDom
 
   def main(): Unit = {
@@ -28,20 +32,22 @@ trait MyMain extends js.JSApp with FrpMain[Builder, VTreeChild, VTreeChild] {
     val domPatcherOpt =
       initialVDom.map(v => new DomPatcher(v.render))
 
-    // FIXME: Log if there is no patcher
-    domPatcherOpt.foreach { domPatcher =>
-      def onLoad(x: Any) = {
-        val el = dom.document.getElementById("mtfrpcontent")
-        el.replaceChild(domPatcher.renderedElement, el.firstChild)
-      }
-      dom.document.addEventListener("DOMContentLoaded", onLoad _)
-
-      engine.subscribeForPulses { pulses =>
-        val newVDomOpt = pulses(mainUi.changes).map(_.render)
-        newVDomOpt.foreach { newVDom =>
-          domPatcher.applyNewState(newVDom)
+    domPatcherOpt match {
+      case Some(domPatcher) =>
+        def onLoad(x: Any) = {
+          val el = dom.document.getElementById("mtfrpcontent")
+          el.replaceChild(domPatcher.renderedElement, el.firstChild)
         }
-      }
+        dom.document.addEventListener("DOMContentLoaded", onLoad _)
+
+        engine.subscribeForPulses { pulses =>
+          val newVDomOpt = pulses(mainUi.changes).map(_.render)
+          newVDomOpt.foreach { newVDom =>
+            domPatcher.applyNewState(newVDom)
+          }
+        }
+
+      case _ => logger.info(s"Could not create a DomPatcher, no value for: $mainUi")
     }
   }
 }

@@ -1,23 +1,22 @@
 package mtfrp.core
 
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Route, _}
+import akka.http.scaladsl.server._
 import akka.stream._
 import akka.stream.scaladsl._
 import de.heikoseeberger.akkahttpcirce.CirceSupport
 import de.heikoseeberger.akkasse._
-import hokko.core.Engine
 import hokko.{core => HC}
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.syntax._
+import slogging.LazyLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-object RouteCreator {
+object RouteCreator extends LazyLogging {
   import CirceSupport._
-  import Directives._
   import EventStreamMarshalling._
 
   type SourceQueue[A] = SourceQueueWithComplete[A]
@@ -61,12 +60,7 @@ object RouteCreator {
     source.mapMaterializedValue { queue =>
       val subscription = engine.subscribeForPulses { pulses =>
         val pulse = pulses(event)
-        pulse.foreach { cf =>
-          val messages = cf(client)
-          val sse      = ServerSentEvent(messages.asJson.noSpaces, Names.Sse.update)
-          // FIXME: log failures
-          queue.offer(sse)
-        }
+        offer(client, queue, Names.Sse.update, pulse)
       }
 
       queue.watchCompletion().onComplete { _ =>
@@ -85,22 +79,35 @@ object RouteCreator {
     source.mapMaterializedValue { queue =>
       val currentValues = engine.askCurrentValues()
       val initials      = currentValues(beh)
-      initials.foreach { cf =>
-        val messages = cf(client)
-        val sse      = ServerSentEvent(messages.asJson.noSpaces, Names.Sse.reset)
-        // FIXME: log failures
-        queue.offer(sse)
-      }
+      offer(client, queue, Names.Sse.reset, initials)
 
       queue
     }
   }
+
+  def offer[A: Encoder](client: Client,
+                        queue: SseQueue,
+                        name: String,
+                        pulse: Option[Client => A]): Unit = {
+    pulse match {
+      case Some(cf) =>
+        val messages = cf(client)
+        val sse =
+          ServerSentEvent(messages.asJson.noSpaces, name)
+        val qOffer = queue.offer(sse)
+        qOffer.onFailure {
+          case t => logger.info(s"Could not offer $sse to $queue: $t")
+        }
+      case _ => logger.info(s"No pulse created")
+    }
+  }
+
 }
 
 class RouteCreator(graph: ReplicationGraph) {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
-  val engine: Engine         = HC.Engine.compile(Seq(exitData.event), Nil)
+  val engine: HC.Engine      = HC.Engine.compile(Seq(exitData.event), Nil)
 
   val exitRoute: Route = {
     val queueSize = Int.MaxValue // FIXME: pick something sensible

@@ -29,9 +29,9 @@ lazy val foo = crossProject
       "-language:existentials"
     ),
     libraryDependencies ++= Seq(
+      "biz.enef" %%% "slogging" % "0.5.0",
       "hokko" %%% "hokkonat" % "0.1-SNAPSHOT",
       "com.lihaoyi" %%% "scalatags" % "0.6.0",
-      "com.lihaoyi" %%% "sourcecode" % "0.1.0",
       "org.scalatest" %%% "scalatest" % "3.0.0-M10" % "test"
     ) ++ Seq(
       "io.circe" %%% "circe-core",
