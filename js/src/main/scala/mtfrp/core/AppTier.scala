@@ -18,9 +18,8 @@ object AppEvent {
   implicit class ReplicableEvent[A](appEv: AppEvent[Client => Option[A]]) {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
-      val source       = core.Event.source[A]
-      val newGraph     = ReplicationGraphClient.ReceiverEvent(source, appEv.graph)
-      hokkoBuilder.event(source, newGraph)
+      val newGraph     = ReplicationGraphClient.ReceiverEvent(appEv.graph)
+      hokkoBuilder.event(newGraph.source, newGraph)
     }
   }
 }
@@ -49,13 +48,11 @@ object AppIncBehavior {
                  eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
       val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
-      // FIXME: these should be provided by behaviorReceiver
-      val deltas = core.Event.source[DeltaA]
-      val resets = core.Event.source[A]
-
       val newGraph =
-        ReplicationGraphClient.ReceiverBehavior(deltas, resets, appBeh.graph)
+        ReplicationGraphClient.ReceiverBehavior(appBeh.graph)
 
+      val deltas = newGraph.deltas
+      val resets = newGraph.resets
       val union =
         deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right) { (l, r) =>
           Xor.right(r)
@@ -63,7 +60,7 @@ object AppIncBehavior {
 
       // FIXME: this is the initial value on clients before the application works,
       // we should do something smart here
-      //   1. use the latest value on the server [TODO]
+      //   1. use the latest value on the server [TODO]]
       //   2. use the initial server values [DONE]
       val init: A = appBeh.initial(ClientGenerator.static)
 

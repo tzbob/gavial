@@ -35,21 +35,20 @@ object ReplicationGraphClient {
       behavior: HC.Behavior[Seq[Message]]
   )
 
-  case class ReceiverEvent[A: Decoder](
-      source: HC.EventSource[A],
-      dependency: ReplicationGraph
-  ) extends ReplicationGraph.HasDependency {
+  case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)
+      extends ReplicationGraph.HasDependency {
+    val source: HC.EventSource[A] = HC.Event.source
     def pulse(msg: Message): Option[Pulse] = {
       val decoded = msg.payload.as[A]
       decoded.toOption.map(source.->)
     }
   }
 
-  case class ReceiverBehavior[A, DeltaA](
-      deltas: HC.EventSource[DeltaA],
-      resets: HC.EventSource[A],
-      dependency: ReplicationGraph
-  ) extends ReplicationGraph.HasDependency
+  case class ReceiverBehavior[A, DeltaA](dependency: ReplicationGraph)
+      extends ReplicationGraph.HasDependency {
+    val deltas = HC.Event.source[DeltaA]
+    val resets = HC.Event.source[A]
+  }
 
   case class SenderEvent[A: Encoder](
       event: HC.Event[A],
@@ -63,8 +62,5 @@ object ReplicationGraphClient {
       dependency: ReplicationGraph
   ) extends ReplicationGraph.HasDependency {
     val deltaSender = SenderEvent(behavior.deltas, dependency)
-    // TODO: do we need this?
-    val message: HC.Behavior[Message] =
-      behavior.map(Message.fromPayload(this.token))
   }
 }

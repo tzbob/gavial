@@ -41,7 +41,6 @@ object RouteCreator {
 
   def buildExitRoute[A](source: SseSource[A])(
       onConnect: (Client, SseSource[A]) => SseSource[A]): Route = {
-    // FIXME: Is this escaped? How?, factor our 'events' string
     path(Names.toClientUpdates / JavaUUID) { cuuid =>
       pathEnd {
         get {
@@ -70,7 +69,6 @@ object RouteCreator {
         }
       }
 
-      // FIXME: Does this end when HTTP SSE request ends?
       queue.watchCompletion().onComplete { _ =>
         subscription.cancel()
         println(s"FIXME: client $client disconnected")
