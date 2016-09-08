@@ -11,7 +11,6 @@ lazy val foo = crossProject
     scalafmtConfig in ThisBuild := Some(file(".scalafmt")),
     organization := "foo",
     name := "foo",
-    autoCompilerPlugins := true,
     scalacOptions ++= Seq(
       "-encoding",
       "UTF-8",
@@ -59,10 +58,10 @@ lazy val foo = crossProject
   )
 
 // Needed, so sbt finds the projects
-lazy val fooJS = foo.js
+lazy val fooJS = foo.js.enablePlugins(ScalaJSWeb)
 
 lazy val fooJVM = foo.jvm.settings(
-  resources in Compile += (packageJSDependencies in fooJS in Compile).value,
-  resources in Compile += (fastOptJS in fooJS in Compile).value.data,
-  resources in Compile += (packageScalaJSLauncher in fooJS in Compile).value.data
-)
+  scalaJSProjects := Seq(fooJS),
+  pipelineStages in Assets := Seq(scalaJSPipeline),
+  managedClasspath in Runtime += (packageBin in Assets).value
+).enablePlugins(SbtWeb)
