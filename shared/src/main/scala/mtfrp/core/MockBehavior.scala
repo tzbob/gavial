@@ -15,7 +15,8 @@ class MockBehavior[T <: MockTier: MockBuilder, A](
     mockBuilder.event(graph + ev.graph)
 }
 
-abstract class MockBehaviorObject[ SubT <: MockTier { type T = SubT }: MockBuilder]
+abstract class MockBehaviorObject[
+    SubT <: MockTier { type T = SubT }: MockBuilder]
     extends BehaviorObject[SubT] {
   private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
   def constant[A](x: A): SubT#Behavior[A] =

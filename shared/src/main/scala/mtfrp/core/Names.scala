@@ -6,7 +6,7 @@ object Names {
 
   object Sse {
     val update = "update"
-    val reset = "reset"
+    val reset  = "reset"
   }
 
 }

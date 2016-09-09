@@ -21,9 +21,9 @@ class SessionEvent[A] private[core] (
 
   def dropIf[B](f: A => Boolean): SessionTier#Event[A] = ???
   def fold[B, AA >: A](initial: B)(
-      f: (B, AA) => B): SessionTier#IncrementalBehavior[B, AA] = ???
+      f: (B, AA) => B): SessionTier#IncrementalBehavior[B, AA]     = ???
   def hold[AA >: A](initial: AA): SessionTier#DiscreteBehavior[AA] = ???
-  def map[B](f: A => B): SessionTier#Event[B] = ???
+  def map[B](f: A => B): SessionTier#Event[B]                      = ???
   def mergeWith[AA >: A](
       events: SessionTier#Event[AA]*): SessionTier#Event[Seq[AA]] = ???
   def unionLeft[AA >: A](other: SessionTier#Event[AA]): SessionTier#Event[AA] =

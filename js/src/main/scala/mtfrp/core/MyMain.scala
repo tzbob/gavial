@@ -18,7 +18,8 @@ trait MyMain
   def main(): Unit = {
     val clientId = ClientGenerator.static.id
 
-    val manager = new EventManager(ui.graph, Seq(ui.rep.toCBehavior), Seq(ui.rep.changes))
+    val manager =
+      new EventManager(ui.graph, Seq(ui.rep.toCBehavior), Seq(ui.rep.changes))
 
     manager.startReceiving(s"/${Names.toClientUpdates}/$clientId")
     manager.startSending(s"/${Names.toServerUpdates}/$clientId")
@@ -47,7 +48,8 @@ trait MyMain
           }
         }
         ()
-      case _ => logger.info(s"Could not create a DomPatcher, no value for: $mainUi")
+      case _ =>
+        logger.info(s"Could not create a DomPatcher, no value for: $mainUi")
     }
   }
 }

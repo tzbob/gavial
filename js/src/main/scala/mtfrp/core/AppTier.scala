@@ -53,9 +53,11 @@ object AppIncBehavior extends MockIncrementalBehaviorObject[AppTier] {
 
       val deltas = newGraph.deltas.toEvent
       val resets = newGraph.resets.toEvent
-      val union = // explicit types needed: SI-9772
-        deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right[DeltaA, A]) { (_: DeltaA, r: A) =>
-          Xor.right[DeltaA, A](r)
+      // explicit types needed: SI-9772
+      val union =
+        deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right[DeltaA, A]) {
+          (_: DeltaA, r: A) =>
+            Xor.right[DeltaA, A](r)
         }
 
       // FIXME: this is the initial value on clients before the application works,

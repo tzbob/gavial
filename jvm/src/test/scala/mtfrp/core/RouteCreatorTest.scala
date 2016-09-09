@@ -94,7 +94,8 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
       val client    = ClientGenerator.fresh
       val queueSize = Int.MaxValue
       val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
-      val mappedSrc = RouteCreator.queueResets(beh.toCBehavior, engine)(client, src)
+      val mappedSrc =
+        RouteCreator.queueResets(beh.toCBehavior, engine)(client, src)
 
       val future = mappedSrc.grouped(1).runWith(Sink.head)
 
