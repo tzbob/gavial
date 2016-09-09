@@ -24,8 +24,9 @@ trait DiscreteBehaviorObject[SubT <: Tier { type T = SubT }]
     with SnapshottableSyntax {
   def constant[A](x: A): SubT#DiscreteBehavior[A]
 
-  def makeInstances: tc.Snapshottable[SubT#DiscreteBehavior, SubT#Event] with Applicative[
-    SubT#DiscreteBehavior] =
+  implicit val mtfrpDBehaviorInstances: tc.Snapshottable[
+    SubT#DiscreteBehavior,
+    SubT#Event] with Applicative[SubT#DiscreteBehavior] =
     new tc.Snapshottable[SubT#DiscreteBehavior, SubT#Event]
     with Applicative[SubT#DiscreteBehavior] {
       override def snapshotWith[A, B, C](

@@ -2,7 +2,6 @@ package mtfrp
 package core
 
 import hokko.core
-import hokko.core.tc
 import io.circe._
 
 // Define all App types
@@ -14,8 +13,7 @@ class AppEvent[A] private[core] (
 ) extends HokkoEvent[AppTier, A](rep, graph)
 
 object AppEvent extends HokkoEventObject {
-  implicit val mtfrpAppEventInstances: tc.Event[AppEvent, AppIncBehavior] =
-    this.makeInstances[AppTier]
+  implicit val mtfrpAppEventInstances = this.makeInstances[AppTier]
 
   implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {

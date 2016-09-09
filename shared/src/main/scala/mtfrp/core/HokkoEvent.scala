@@ -22,13 +22,14 @@ private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
     hokkoBuilder.event(rep.collect(fb), graph)
 }
 
-abstract class HokkoEventObject[T <: HokkoTier: HokkoBuilder]
-    extends EventObject[T] {
-  val builder = implicitly[HokkoBuilder[T]]
+abstract class HokkoEventObject[
+    SubT <: HokkoTier { type T = SubT }: HokkoBuilder]
+    extends EventObject[SubT] {
+  val builder = implicitly[HokkoBuilder[SubT]]
 
-  def empty[A]: T#Event[A] =
+  def empty[A]: SubT#Event[A] =
     builder.event(core.Event.empty, ReplicationGraph.start)
 
-  private[core] def apply[A](ev: core.Event[A]): T#Event[A] =
+  private[core] def apply[A](ev: core.Event[A]): SubT#Event[A] =
     builder.event(ev, ReplicationGraph.start)
 }

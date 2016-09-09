@@ -22,12 +22,12 @@ class MockEvent[T <: MockTier: MockBuilder, A](
     mockBuilder.event(graph)
 }
 
-abstract class MockEventObject[T <: MockTier: MockBuilder]
-    extends EventObject[T] {
-  val builder = implicitly[MockBuilder[T]]
+abstract class MockEventObject[SubT <: MockTier { type T = SubT }: MockBuilder]
+    extends EventObject[SubT] {
+  val builder = implicitly[MockBuilder[SubT]]
 
-  def empty[A]: T#Event[A] = builder.event(ReplicationGraph.start)
+  def empty[A]: SubT#Event[A] = builder.event(ReplicationGraph.start)
 
-  private[core] def apply[A](ev: HC.Event[A]): T#Event[A] =
+  private[core] def apply[A](ev: HC.Event[A]): SubT#Event[A] =
     builder.event(ReplicationGraph.start)
 }

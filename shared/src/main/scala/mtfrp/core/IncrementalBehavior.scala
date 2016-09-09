@@ -45,7 +45,9 @@ trait IncrementalBehaviorObject[SubT <: Tier { type T = SubT }]
 
   def constant[A](x: A): SubT#IncrementalBehavior[A, Nothing]
 
-  def makeInstances: tc.Snapshottable[IncrementalBehaviorA, SubT#Event] =
+  implicit val mtfrpIncrementalBehaviorInstances: tc.Snapshottable[
+    IncrementalBehaviorA,
+    SubT#Event] =
     new tc.Snapshottable[IncrementalBehaviorA, SubT#Event] {
       override def snapshotWith[A, B, C](
           b: IncrementalBehaviorA[A],

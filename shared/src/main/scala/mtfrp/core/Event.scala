@@ -17,14 +17,14 @@ trait Event[T <: Tier, A] {
   def collect[B, AA >: A](fb: A => Option[B]): T#Event[B]
 }
 
-trait EventObject[T <: Tier]
+trait EventObject[SubT <: Tier { type T = SubT }]
     extends hokko.syntax.EventSyntax
     with FunctorSyntax {
-  def empty[A]: T#Event[A]
-  private[core] def apply[A](ev: HC.Event[A]): T#Event[A]
+  def empty[A]: SubT#Event[A]
+  private[core] def apply[A](ev: HC.Event[A]): SubT#Event[A]
 
-  def makeInstances[SubT <: T { type T = SubT }]
-    : tc.Event[SubT#Event, SubT#IncrementalBehavior] =
+  implicit val mtfrpEventInstances: tc.Event[SubT#Event,
+                                             SubT#IncrementalBehavior] =
     new tc.Event[SubT#Event, SubT#IncrementalBehavior] {
       override def fold[A, DeltaA](ev: SubT#Event[DeltaA], initial: A)(
           f: (A, DeltaA) => A): SubT#IncrementalBehavior[A, DeltaA] =

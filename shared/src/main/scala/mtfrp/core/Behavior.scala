@@ -17,8 +17,9 @@ trait BehaviorObject[SubT <: Tier { type T = SubT }]
     with SnapshottableSyntax {
   def constant[A](x: A): SubT#Behavior[A]
 
-  def makeInstances: tc.Snapshottable[SubT#Behavior, SubT#Event] with Applicative[
-    SubT#Behavior] =
+  implicit val mtfrpBehaviorInstances: tc.Snapshottable[
+    SubT#Behavior,
+    SubT#Event] with Applicative[SubT#Behavior] =
     new tc.Snapshottable[SubT#Behavior, SubT#Event]
     with Applicative[SubT#Behavior] {
       override def snapshotWith[A, B, C](
