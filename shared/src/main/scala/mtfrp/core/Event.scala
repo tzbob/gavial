@@ -1,6 +1,10 @@
 package mtfrp
 package core
 
+import cats.syntax.FunctorSyntax
+import hokko.{core => HC}
+import hokko.core.tc
+
 trait Event[T <: Tier, A] {
   private[core] val graph: ReplicationGraph
 
@@ -11,18 +15,27 @@ trait Event[T <: Tier, A] {
       f3: (AA, B) => C): T#Event[C]
 
   def collect[B, AA >: A](fb: A => Option[B]): T#Event[B]
+}
 
-  // Derived ops
+trait EventObject[T <: Tier]
+    extends hokko.syntax.EventSyntax
+    with FunctorSyntax {
+  def empty[A]: T#Event[A]
+  private[core] def apply[A](ev: HC.Event[A]): T#Event[A]
 
-  def hold[AA >: A](initial: AA): T#DiscreteBehavior[AA]
+  def makeInstances[SubT <: T { type T = SubT }]
+    : tc.Event[SubT#Event, SubT#IncrementalBehavior] =
+    new tc.Event[SubT#Event, SubT#IncrementalBehavior] {
+      override def fold[A, DeltaA](ev: SubT#Event[DeltaA], initial: A)(
+          f: (A, DeltaA) => A): SubT#IncrementalBehavior[A, DeltaA] =
+        ev.fold(initial)(f)
 
-  def unionLeft[AA >: A](other: T#Event[AA]): T#Event[AA]
+      override def unionWith[B, C, A](a: SubT#Event[A])(b: SubT#Event[B])(
+          f1: (A) => C)(f2: (B) => C)(f3: (A, B) => C): SubT#Event[C] =
+        a.unionWith(b)(f1)(f2)(f3)
 
-  def unionRight[AA >: A](other: T#Event[AA]): T#Event[AA]
-
-  def mergeWith[AA >: A](events: T#Event[AA]*): T#Event[Seq[AA]]
-
-  def map[B](f: A => B): T#Event[B]
-
-  def dropIf[B](f: A => Boolean): T#Event[A]
+      override def collect[B, A](ev: SubT#Event[A])(
+          fb: (A) => Option[B]): SubT#Event[B] =
+        ev.collect(fb)
+    }
 }

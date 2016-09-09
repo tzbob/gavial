@@ -1,6 +1,7 @@
 package mtfrp
 package core
 
+import hokko.core.tc
 import hokko.{core => HC}
 
 class MockEvent[T <: MockTier: MockBuilder, A](
@@ -20,19 +21,14 @@ class MockEvent[T <: MockTier: MockBuilder, A](
 
   def collect[B, AA >: A](fb: A => Option[B]): T#Event[B] =
     mockBuilder.event(graph)
+}
 
-  // Derived ops
-  def dropIf[B](f: A => Boolean): T#Event[A] =
-    mockBuilder.event(graph)
-  def hold[AA >: A](initial: AA): T#DiscreteBehavior[AA] =
-    mockBuilder.discreteBehavior(graph, initial)
+abstract class MockEventObject[T <: MockTier: MockBuilder]
+    extends EventObject[T] {
+  val builder = implicitly[MockBuilder[T]]
 
-  def map[B](f: A => B): T#Event[B] =
-    mockBuilder.event(graph)
-  def mergeWith[AA >: A](events: T#Event[AA]*): T#Event[Seq[AA]] =
-    mockBuilder.event(ReplicationGraph.combine(graph +: events.map(_.graph)))
-  def unionLeft[AA >: A](other: T#Event[AA]): T#Event[AA] =
-    mockBuilder.event(graph + other.graph)
-  def unionRight[AA >: A](other: T#Event[AA]): T#Event[AA] =
-    mockBuilder.event(graph + other.graph)
+  def empty[A]: T#Event[A] = builder.event(ReplicationGraph.start)
+
+  private[core] def apply[A](ev: HC.Event[A]): T#Event[A] =
+    builder.event(ReplicationGraph.start)
 }

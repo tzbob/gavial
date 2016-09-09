@@ -2,6 +2,8 @@ package mtfrp
 package core
 
 trait SessionTier extends Tier {
+  type T = SessionTier
+
   type Event[A] = SessionEvent[A]
   // type Behavior[A]
   // type DiscreteBehavior[A]

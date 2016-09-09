@@ -72,7 +72,7 @@ object RouteCreator extends LazyLogging {
     }
   }
 
-  def queueResets[A: Encoder](beh: HC.Behavior[Client => A],
+  def queueResets[A: Encoder](beh: HC.CBehavior[Client => A],
                               engine: HC.Engine)(
       client: Client,
       source: SseSource[SseQueue]): SseSource[SseQueue] = {

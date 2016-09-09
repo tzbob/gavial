@@ -2,22 +2,19 @@ package mtfrp
 package core
 
 import hokko.core
+import hokko.core.tc
 import io.circe.{Decoder, Encoder}
 
 // Define all Client types
 // Create all Client constructors
 
-class ClientEvent[A] private[core] (
-    rep: core.Event[A],
-    graph: ReplicationGraph
-) extends HokkoEvent[ClientTier, A](rep, graph)
+class ClientEvent[A] private[core] (rep: core.Event[A],
+                                    graph: ReplicationGraph)
+    extends HokkoEvent[ClientTier, A](rep, graph)
 
-object ClientEvent {
-  def apply[A](ev: core.Event[A]): ClientEvent[A] =
-    new ClientEvent(ev, ReplicationGraph.start)
-
-  def empty[A]: ClientEvent[A] =
-    new ClientEvent(core.Event.source[A], ReplicationGraph.start)
+object ClientEvent extends HokkoEventObject {
+  implicit val mtfrpCliEventInstances: tc.Event[ClientEvent, ClientIncBehavior] =
+    this.makeInstances[ClientTier]
 
   implicit class ToAppEvent[A: Decoder: Encoder](clientEv: ClientEvent[A]) {
     def toApp(): AppEvent[(Client, A)] = {
@@ -30,18 +27,26 @@ object ClientEvent {
 }
 
 class ClientBehavior[A] private[core] (
-    rep: core.Behavior[A],
+    rep: core.CBehavior[A],
     graph: ReplicationGraph
 ) extends HokkoBehavior[ClientTier, A](rep, graph)
 
+object ClientBehavior extends HokkoBehaviorObject[ClientTier] {
+  implicit val mtfrpBehaviorInstances = this.makeInstances
+}
+
 class ClientDiscreteBehavior[A] private[core] (
-    rep: core.DiscreteBehavior[A],
+    rep: core.DBehavior[A],
     initial: A,
     graph: ReplicationGraph
 ) extends HokkoDiscreteBehavior[ClientTier, A](rep, initial, graph)
 
+object ClientDiscreteBehavior extends HokkoDiscreteBehaviorObject[ClientTier] {
+  implicit val mtfrpDBehaviorInstances = this.makeInstances
+}
+
 class ClientIncBehavior[A, DeltaA] private[core] (
-    rep: core.IncrementalBehavior[A, DeltaA],
+    rep: core.IBehavior[A, DeltaA],
     initial: A,
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A
@@ -49,7 +54,10 @@ class ClientIncBehavior[A, DeltaA] private[core] (
                                                     initial,
                                                     graph,
                                                     accumulator)
-object ClientIncBehavior {
+
+object ClientIncBehavior extends HokkoIncrementalBehaviorObject {
+  implicit val mtfrpDBehaviorInstances = this.makeInstances
+
   implicit class ToServerBehavior[A: Decoder: Encoder,
   DeltaA: Decoder: Encoder](clientBeh: ClientIncBehavior[A, DeltaA]) {
     def toApp(): AppIncBehavior[Map[Client, A], (Client, DeltaA)] = {
@@ -69,9 +77,4 @@ object ClientIncBehavior {
   }
 }
 
-final class ClientTier extends HokkoTier with ClientTierLike {
-  type T = ClientTier
-}
-
-object ClientBehavior extends HokkoBehaviorOps[ClientTier]
-object ClientDiscreteBehavior extends HokkoDiscreteBehaviorOps[ClientTier]
+final class ClientTier extends HokkoTier with ClientTierLike

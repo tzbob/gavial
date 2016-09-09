@@ -5,7 +5,7 @@ import hokko.{core => HC}
 
 case class ExitData(
     event: HC.Event[Client => Seq[Message]],
-    behavior: HC.Behavior[Client => Seq[Message]]
+    behavior: HC.CBehavior[Client => Seq[Message]]
 )
 
 case class InputEventRouter(inputs: Map[Int, HC.EventSource[_]])

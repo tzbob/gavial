@@ -51,9 +51,12 @@ class EventReceiverTest extends WordSpec with Matchers {
       val yp     = ev2.rep -> 777
       val pulses = List(xp, yp, yp, xp, xp)
 
-      val result = rcv.decodeAsPulses(messages)
+      val result = rcv.decodeAsPulses(messages).toOption.get
 
-      assert(result.toOption.get === pulses)
+      assert(result.forall(x => x._2 == 999 || x._2 == 777))
+      assert(result(0) == result(3))
+      assert(result(0) == result(4))
+      assert(result(1) == result(2))
     }
   }
 

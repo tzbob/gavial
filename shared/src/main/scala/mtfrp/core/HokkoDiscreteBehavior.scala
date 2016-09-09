@@ -4,47 +4,37 @@ package core
 import hokko.core
 
 class HokkoDiscreteBehavior[T <: HokkoTier: HokkoBuilder, A](
-    private[core] override val rep: core.DiscreteBehavior[A],
-    val initial: A,
-    override private[core] val graph: ReplicationGraph
+    private[core] val rep: core.DBehavior[A],
+    private[core] val initial: A,
+    private[core] val graph: ReplicationGraph
 )(implicit mockBuilder: MockBuilder[T#Replicated])
-    extends HokkoBehavior[T, A](rep, graph)
-    with DiscreteBehavior[T, A] {
+    extends DiscreteBehavior[T, A] {
 
   private[this] val builder = implicitly[HokkoBuilder[T]]
 
   def changes(): T#Event[A] =
     builder.event(rep.changes(), graph)
 
-  def discreteMap[B](f: A => B): T#DiscreteBehavior[B] =
-    builder.discreteBehavior(rep.map(f), f(initial), graph)
+  def reverseApply[B, AA >: A](
+      fb: T#DiscreteBehavior[AA => B]): T#DiscreteBehavior[B] =
+    builder.discreteBehavior(fb.rep ap this.rep,
+                             fb.initial(this.initial),
+                             graph + fb.graph)
 
-  def discreteMap2[B, C](b: T#DiscreteBehavior[B])(
-      f: (A, B) => C): T#DiscreteBehavior[C] =
-    builder.discreteBehavior(rep.discreteMap2(b.rep)(f),
-                             f(initial, b.initial),
-                             graph)
+  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+    builder.event(this.rep.snapshotWith(ev.rep)(f), graph + ev.graph)
 
-  def discreteMap3[B, C, D](
-      b: T#DiscreteBehavior[B],
-      c: T#DiscreteBehavior[C])(f: (A, B, C) => D): T#DiscreteBehavior[D] =
-    builder.discreteBehavior(rep.discreteMap3(b.rep, c.rep)(f),
-                             f(initial, b.initial, c.initial),
-                             graph)
+  def toBehavior: T#Behavior[A] =
+    builder.behavior(rep.toCBehavior, graph)
 
-  def discreteReverseApply[B, AA >: A](
-      fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B] =
-    builder.discreteBehavior(rep.discreteReverseApply(fb.rep),
-                             fb.initial(initial),
-                             graph)
 }
 
-abstract class HokkoDiscreteBehaviorOps[T <: HokkoTier: HokkoBuilder]
-    extends DiscreteBehaviorObject[T] {
-  private[this] val hokkoBuilder = implicitly[HokkoBuilder[T]]
+abstract class HokkoDiscreteBehaviorObject[
+    SubT <: HokkoTier { type T = SubT }: HokkoBuilder]
+    extends DiscreteBehaviorObject[SubT] {
+  private[this] val hokkoBuilder = implicitly[HokkoBuilder[SubT]]
 
-  def constant[A](x: A): T#DiscreteBehavior[A] =
-    hokkoBuilder.discreteBehavior(core.DiscreteBehavior.constant(x),
-                                  x,
-                                  ReplicationGraph.start)
+  def constant[A](x: A): SubT#DiscreteBehavior[A] =
+    hokkoBuilder
+      .discreteBehavior(core.DBehavior.constant(x), x, ReplicationGraph.start)
 }

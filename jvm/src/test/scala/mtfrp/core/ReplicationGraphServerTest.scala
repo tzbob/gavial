@@ -8,13 +8,13 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
   def makeClientEvent: (HC.EventSource[Client => Option[Int]],
                         ClientEvent[Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> AppEvent(src).toClient
+    src -> AppEvent(src.toEvent).toClient
   }
 
   def makeClientBehavior: (HC.EventSource[Client => Option[Int]],
                            ClientIncBehavior[Int, Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> makeCountingBehavior(AppEvent(src))
+    src -> makeCountingBehavior(AppEvent(src.toEvent))
   }
 
   def makeCountingBehavior(beh1src: AppEvent[Client => Option[Int]])
@@ -35,7 +35,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val (ev1src, ev1)      = makeClientEvent
         val (beh1srcsrc, beh1) = makeClientBehavior
 
-        val combined  = beh1.sampledBy(ev1)
+        val combined  = beh1.toDiscreteBehavior.sampledBy(ev1)
         val exitEvent = new ReplicationGraphServer(combined.graph).exitEvent
 
         val engine = HC.Engine.compile(Seq(exitEvent), Nil)

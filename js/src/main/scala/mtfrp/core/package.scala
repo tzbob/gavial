@@ -9,19 +9,19 @@ package object core {
                  graph: ReplicationGraph): ClientTier#Event[A] =
       new ClientEvent(rep, graph)
 
-    def behavior[A](rep: core.Behavior[A],
+    def behavior[A](rep: core.CBehavior[A],
                     graph: ReplicationGraph): ClientTier#Behavior[A] =
       new ClientBehavior(rep, graph)
 
     def discreteBehavior[A](
-        rep: core.DiscreteBehavior[A],
+        rep: core.DBehavior[A],
         initial: A,
         graph: ReplicationGraph
     ): ClientTier#DiscreteBehavior[A] =
       new ClientDiscreteBehavior(rep, initial, graph)
 
     def incrementalBehavior[A, DeltaA](
-        rep: core.IncrementalBehavior[A, DeltaA],
+        rep: core.IBehavior[A, DeltaA],
         initial: A,
         graph: ReplicationGraph,
         accumulator: (A, DeltaA) => A

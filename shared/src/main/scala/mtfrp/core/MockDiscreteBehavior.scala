@@ -2,39 +2,32 @@ package mtfrp
 package core
 
 class MockDiscreteBehavior[T <: MockTier: MockBuilder, A](
-    graph: ReplicationGraph,
+    private[core] val graph: ReplicationGraph,
     private[core] val initial: A
 )(implicit hokkoBuilder: HokkoBuilder[T#Replicated])
-    extends MockBehavior[T, A](graph)
-    with DiscreteBehavior[T, A] {
+    extends DiscreteBehavior[T, A] {
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
   def changes(): T#Event[A] =
     mockBuilder.event(graph)
 
-  def discreteMap[B](f: A => B): T#DiscreteBehavior[B] =
-    mockBuilder.discreteBehavior(graph, f(initial))
-
-  def discreteMap2[B, C](b: T#DiscreteBehavior[B])(
-      f: (A, B) => C): T#DiscreteBehavior[C] =
-    mockBuilder.discreteBehavior(graph + b.graph, f(initial, b.initial))
-
-  def discreteMap3[B, C, D](
-      b: T#DiscreteBehavior[B],
-      c: T#DiscreteBehavior[C])(f: (A, B, C) => D): T#DiscreteBehavior[D] =
-    mockBuilder.discreteBehavior(graph + b.graph + c.graph,
-                                 f(initial, b.initial, c.initial))
-
-  def discreteReverseApply[B, AA >: A](
-      fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B] =
+  def reverseApply[B, AA >: A](
+      fb: T#DiscreteBehavior[AA => B]): T#DiscreteBehavior[B] =
     mockBuilder.discreteBehavior(graph + fb.graph, fb.initial(initial))
+
+  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+    mockBuilder.event(graph + ev.graph)
+
+  def toBehavior: T#Behavior[A] =
+    mockBuilder.behavior(graph)
 }
 
-abstract class MockDiscreteBehaviorOps[T <: MockTier: MockBuilder]
-    extends DiscreteBehaviorObject[T] {
-  private[this] val mockBuilder = implicitly[MockBuilder[T]]
+abstract class MockDiscreteBehaviorObject[
+    SubT <: MockTier { type T = SubT }: MockBuilder]
+    extends DiscreteBehaviorObject[SubT] {
+  private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
 
-  def constant[A](x: A): T#DiscreteBehavior[A] =
+  def constant[A](x: A): SubT#DiscreteBehavior[A] =
     mockBuilder.discreteBehavior(ReplicationGraph.start, x)
 }

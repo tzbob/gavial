@@ -3,7 +3,7 @@ package mtfrp.core
 import hokko.{core => HC}
 
 class EventManager(graph: ReplicationGraph,
-                   exitBehaviors: Seq[HC.Behavior[_]],
+                   exitBehaviors: Seq[HC.CBehavior[_]],
                    exitEvents: Seq[HC.Event[_]]) {
   val rgc    = new ReplicationGraphClient(graph)
   val engine = HC.Engine.compile(exitEvents :+ rgc.exitEvent, exitBehaviors)

@@ -60,13 +60,13 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
 
     "queue the exit event on a sourcequeue" in {
       val eventSource = HC.Event.source[Client => Int]
-      val engine      = HC.Engine.compile(List(eventSource), Nil)
+      val engine      = HC.Engine.compile(List(eventSource.toEvent), Nil)
 
       val client    = ClientGenerator.fresh
       val queueSize = Int.MaxValue
       val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
       val mappedSrc =
-        RouteCreator.queueUpdates(eventSource, engine)(client, src)
+        RouteCreator.queueUpdates(eventSource.toEvent, engine)(client, src)
 
       val range  = Range(1, 10)
       val future = mappedSrc.grouped(range.size).runWith(Sink.head)
@@ -85,16 +85,16 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
     "queue the resets on a sourcequeue" in {
       val eventSource = HC.Event.source[Client => Int]
       val init        = 0
-      val beh = eventSource.fold((c: Client) => init) {
+      val beh = eventSource.toEvent.fold((c: Client) => init) {
         (accF, newF) => (c: Client) =>
           accF(c) + newF(c)
       }
-      val engine = HC.Engine.compile(Nil, Seq(beh))
+      val engine = HC.Engine.compile(Nil, Seq(beh.toCBehavior))
 
       val client    = ClientGenerator.fresh
       val queueSize = Int.MaxValue
       val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
-      val mappedSrc = RouteCreator.queueResets(beh, engine)(client, src)
+      val mappedSrc = RouteCreator.queueResets(beh.toCBehavior, engine)(client, src)
 
       val future = mappedSrc.grouped(1).runWith(Sink.head)
 

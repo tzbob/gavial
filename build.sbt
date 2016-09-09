@@ -1,4 +1,5 @@
 scalaVersion in ThisBuild := "2.11.8"
+scalafmtConfig in ThisBuild := Some(file(".scalafmt"))
 
 lazy val root = project
   .in(file("."))
@@ -8,7 +9,6 @@ lazy val root = project
 lazy val foo = crossProject
   .in(file("."))
   .settings(
-    scalafmtConfig in ThisBuild := Some(file(".scalafmt")),
     organization := "foo",
     name := "foo",
     scalacOptions ++= Seq(
@@ -28,8 +28,9 @@ lazy val foo = crossProject
       "-language:existentials"
     ),
     libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats" % "0.7.2",
       "biz.enef" %%% "slogging" % "0.5.0",
-      "hokko" %%% "hokkonat" % "0.1-SNAPSHOT",
+      "be.tzbob" %%% "hokko" % "0.3.1-SNAPSHOT",
       "com.lihaoyi" %%% "scalatags" % "0.6.0",
       "org.scalatest" %%% "scalatest" % "3.0.0-M10" % "test"
     ) ++ Seq(
@@ -42,7 +43,7 @@ lazy val foo = crossProject
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "de.heikoseeberger" %% "akka-sse" % "1.8.1",
-      "de.heikoseeberger" %% "akka-http-circe" % "1.8.0",
+      "de.heikoseeberger" %% "akka-http-circe" % "1.9.0",
       "com.typesafe.akka" %% "akka-http-testkit" % Version.akka
     )
   )
@@ -58,10 +59,12 @@ lazy val foo = crossProject
   )
 
 // Needed, so sbt finds the projects
-lazy val fooJS = foo.js.enablePlugins(ScalaJSWeb)
+lazy val fooJS = foo.js
+  //.enablePlugins(ScalaJSWeb)
 
-lazy val fooJVM = foo.jvm.settings(
-  scalaJSProjects := Seq(fooJS),
-  pipelineStages in Assets := Seq(scalaJSPipeline),
-  managedClasspath in Runtime += (packageBin in Assets).value
-).enablePlugins(SbtWeb)
+lazy val fooJVM = foo.jvm
+//  .settings(
+//  scalaJSProjects := Seq(fooJS),
+//  pipelineStages in Assets := Seq(scalaJSPipeline),
+//  managedClasspath in Runtime += (packageBin in Assets).value
+//).enablePlugins(SbtWeb)

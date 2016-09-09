@@ -32,7 +32,7 @@ class ReplicationGraphClient(graph: ReplicationGraph) {
 object ReplicationGraphClient {
   case class ExitData(
       event: HC.Event[Seq[Message]],
-      behavior: HC.Behavior[Seq[Message]]
+      behavior: HC.CBehavior[Seq[Message]]
   )
 
   case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)
@@ -46,6 +46,7 @@ object ReplicationGraphClient {
 
   case class ReceiverBehavior[A, DeltaA](dependency: ReplicationGraph)
       extends ReplicationGraph.HasDependency {
+    // TODO: Figure out why the deltas and resets aren't used???
     val deltas = HC.Event.source[DeltaA]
     val resets = HC.Event.source[A]
   }
@@ -58,7 +59,7 @@ object ReplicationGraphClient {
   }
 
   case class SenderBehavior[A: Encoder, DeltaA: Encoder](
-      behavior: HC.IncrementalBehavior[A, DeltaA],
+      behavior: HC.IBehavior[A, DeltaA],
       dependency: ReplicationGraph
   ) extends ReplicationGraph.HasDependency {
     val deltaSender = SenderEvent(behavior.deltas, dependency)

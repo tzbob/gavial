@@ -20,11 +20,7 @@ package mtfrp.core {
     import hokko.{core => HC}
     val source = HC.Event.source[Int]
 
-    val ev0: AppEvent[Client => Option[Int]] =
-      AppEvent(source).map { i => (c: Client) =>
-        println(s"App Source: $i")
-        Some(i)
-      }
+    val ev0: AppEvent[Client => Option[Int]] = ???
 
     val ev: AppEvent[Client => Option[Int]] =
       ev0.toClient.map { i =>
@@ -34,14 +30,14 @@ package mtfrp.core {
         println(i)
         Some(i._2)
       }
-
     val ui: ClientDiscreteBehavior[HTML] =
       ev.toClient
         .fold(0) { (acc, n) =>
           println(s"new value from server: $n")
           acc + n
         }
-        .discreteMap { x =>
+        .toDiscreteBehavior
+        .map { x =>
           println(s"discrete update: $x")
           div(p(x))
         }

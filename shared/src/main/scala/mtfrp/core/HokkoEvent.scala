@@ -2,13 +2,12 @@ package mtfrp
 package core
 
 import hokko.core
+import hokko.core.tc
 
 private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
     private[core] val rep: core.Event[A],
     private[core] val graph: ReplicationGraph
 ) extends Event[T, A] {
-
-  type Tier = T
 
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[T]]
 
@@ -22,26 +21,15 @@ private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
 
   def collect[B, AA >: A](fb: A => Option[B]): T#Event[B] =
     hokkoBuilder.event(rep.collect(fb), graph)
+}
 
-  // Derived ops
-  def dropIf[B](f: A => Boolean): T#Event[A] =
-    hokkoBuilder.event(rep.dropIf(f), graph)
+abstract class HokkoEventObject[T <: HokkoTier: HokkoBuilder]
+    extends EventObject[T] {
+  val builder = implicitly[HokkoBuilder[T]]
 
-  def hold[AA >: A](initial: AA): T#DiscreteBehavior[AA] =
-    hokkoBuilder.discreteBehavior(rep.hold(initial), initial, graph)
+  def empty[A]: T#Event[A] =
+    builder.event(core.Event.empty, ReplicationGraph.start)
 
-  def map[B](f: A => B): T#Event[B] =
-    hokkoBuilder.event(rep.map(f), graph)
-
-  def mergeWith[AA >: A](events: T#Event[AA]*): T#Event[Seq[AA]] =
-    hokkoBuilder.event(
-      rep.mergeWith(events.map(_.rep): _*),
-      ReplicationGraph.combine(graph +: events.map(_.graph))
-    )
-
-  def unionLeft[AA >: A](other: T#Event[AA]): T#Event[AA] =
-    hokkoBuilder.event(rep.unionLeft(other.rep), graph + other.graph)
-
-  def unionRight[AA >: A](other: T#Event[AA]): T#Event[AA] =
-    hokkoBuilder.event(rep.unionRight(other.rep), graph + other.graph)
+  private[core] def apply[A](ev: core.Event[A]): T#Event[A] =
+    builder.event(ev, ReplicationGraph.start)
 }

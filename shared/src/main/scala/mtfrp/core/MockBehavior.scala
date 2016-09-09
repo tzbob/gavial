@@ -1,6 +1,9 @@
 package mtfrp
 package core
 
+import cats.Applicative
+import hokko.core.tc
+
 class MockBehavior[T <: MockTier: MockBuilder, A](
     private[core] val graph: ReplicationGraph
 )(implicit hokkoBuilder: HokkoBuilder[T#Replicated])
@@ -8,31 +11,16 @@ class MockBehavior[T <: MockTier: MockBuilder, A](
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
-  def map[B](f: A => B): T#Behavior[B] =
-    mockBuilder.behavior(graph)
-
-  def map2[B, C](b: T#Behavior[B])(f: (A, B) => C): T#Behavior[C] =
-    mockBuilder.behavior(graph + b.graph)
-
-  def map3[B, C, D](b: T#Behavior[B], c: T#Behavior[C])(
-      f: (A, B, C) => D): T#Behavior[D] =
-    mockBuilder.behavior(graph + b.graph + c.graph)
-
   def reverseApply[B, AA >: A](fb: T#Behavior[AA => B]): T#Behavior[B] =
     mockBuilder.behavior(graph + fb.graph)
 
-  def sampledBy(ev: T#Event[_]): T#Event[A] =
+  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     mockBuilder.event(graph + ev.graph)
-
-  def snapshotWith[B, AA >: A](ev: T#Event[AA => B]): T#Event[B] =
-    mockBuilder.event(graph + ev.graph)
-
 }
 
-abstract class MockBehaviorOps[T <: MockTier: MockBuilder]
-    extends BehaviorObject[T] {
-  private[this] val mockBuilder = implicitly[MockBuilder[T]]
-
-  def constant[A](x: A): T#Behavior[A] =
+abstract class MockBehaviorObject[ SubT <: MockTier { type T = SubT }: MockBuilder]
+    extends BehaviorObject[SubT] {
+  private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
+  def constant[A](x: A): SubT#Behavior[A] =
     mockBuilder.behavior(ReplicationGraph.start)
 }

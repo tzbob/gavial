@@ -18,7 +18,7 @@ trait MyMain
   def main(): Unit = {
     val clientId = ClientGenerator.static.id
 
-    val manager = new EventManager(ui.graph, Seq(ui.rep), Seq(ui.rep.changes))
+    val manager = new EventManager(ui.graph, Seq(ui.rep.toCBehavior), Seq(ui.rep.changes))
 
     manager.startReceiving(s"/${Names.toClientUpdates}/$clientId")
     manager.startSending(s"/${Names.toServerUpdates}/$clientId")
@@ -26,8 +26,8 @@ trait MyMain
     applyHtml(manager.engine, ui.rep)
   }
 
-  def applyHtml(engine: Engine, mainUi: HC.DiscreteBehavior[HTML]): Unit = {
-    val initialVDom = engine.askCurrentValues()(mainUi)
+  def applyHtml(engine: Engine, mainUi: HC.DBehavior[HTML]): Unit = {
+    val initialVDom = engine.askCurrentValues()(mainUi.toCBehavior)
 
     val domPatcherOpt =
       initialVDom.map(v => new DomPatcher(v.render))

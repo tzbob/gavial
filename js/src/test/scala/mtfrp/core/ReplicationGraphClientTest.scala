@@ -8,13 +8,13 @@ class ReplicationGraphClientTest extends WordSpec {
 
   def makeAppEvent: (HC.EventSource[Int], AppEvent[(Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> ClientEvent(src).toApp
+    src -> ClientEvent(src.toEvent).toApp
   }
 
   def makeAppBehavior: (HC.EventSource[Int],
                         AppIncBehavior[Map[Client, Int], (Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> makeCountingBehavior(ClientEvent(src))
+    src -> makeCountingBehavior(ClientEvent(src.toEvent))
   }
 
   def makeCountingBehavior(beh1src: ClientEvent[Int])
@@ -30,7 +30,7 @@ class ReplicationGraphClientTest extends WordSpec {
       val (ev1src, ev1)      = makeAppEvent
       val (beh1srcsrc, beh1) = makeAppBehavior
 
-      val combined  = beh1.sampledBy(ev1)
+      val combined  = beh1.toDiscreteBehavior.sampledBy(ev1)
       val exitEvent = new ReplicationGraphClient(combined.graph).exitEvent
 
       val engine = HC.Engine.compile(Seq(exitEvent), Nil)

@@ -2,6 +2,8 @@ package mtfrp
 package core
 
 private[core] trait AppTierLike extends Tier {
+  type T = AppTier
+
   type Event[A] = AppEvent[A]
   type Behavior[A] = AppBehavior[A]
   type DiscreteBehavior[A] = AppDiscreteBehavior[A]

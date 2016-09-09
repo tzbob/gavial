@@ -1,5 +1,6 @@
 package mtfrp.core
 
+import cats.syntax.functor._
 import hokko.{core => HC}
 import io.circe._
 import mtfrp.core.ReplicationGraph.Pulse
@@ -28,14 +29,14 @@ class ReplicationGraphServer(graph: ReplicationGraph) {
     mergedSendersOneClient
   }
 
-  val exitBehavior: HC.Behavior[Client => Seq[Message]] = {
+  val exitBehavior: HC.CBehavior[Client => Seq[Message]] = {
     // all senders that should be added to the exit behavior
     val senders = graphList.collect {
       case s: ReplicationGraphServer.SenderBehavior[_, _] => s.message
     }
 
     val mergedSenders =
-      senders.foldLeft(HC.Behavior.constant(List.empty[Client => Message])) {
+      senders.foldLeft(HC.CBehavior.constant(List.empty[Client => Message])) {
         (accB, newB) =>
           accB.map2(newB)(_ :+ _)
       }
@@ -72,11 +73,11 @@ object ReplicationGraphServer {
   }
 
   case class SenderBehavior[A: Encoder, DeltaA: Encoder](
-      behavior: HC.IncrementalBehavior[Client => A, Client => Option[DeltaA]],
+      behavior: HC.IBehavior[Client => A, Client => Option[DeltaA]],
       dependency: ReplicationGraph
   ) extends ReplicationGraph.HasDependency {
     val deltaSender = SenderEvent(behavior.deltas, dependency)
-    val message = behavior.map { evf => c: Client =>
+    val message = behavior.toCBehavior.map { evf => c: Client =>
       Message.fromPayload(this.token)(evf(c))
     }
   }

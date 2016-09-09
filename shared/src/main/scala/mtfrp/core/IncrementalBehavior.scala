@@ -1,14 +1,19 @@
 package mtfrp
 package core
 
-trait IncrementalBehavior[T <: Tier, A, DeltaA]
-    extends DiscreteBehavior[T, A] {
+import hokko.syntax.SnapshottableSyntax
+import hokko.core.tc
 
+trait IncrementalBehavior[T <: Tier, A, DeltaA] {
   private[core] def accumulator: (A, DeltaA) => A
 
+  def changes: T#Event[A]
   def deltas: T#Event[DeltaA]
   def map[B, DeltaB](accumulator: (B, DeltaB) => B)(fa: A => B)(
       fb: DeltaA => DeltaB): T#IncrementalBehavior[B, DeltaB]
+
+  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
+  def toDiscreteBehavior: T#DiscreteBehavior[A]
 }
 
 object IncrementalBehavior {
@@ -31,5 +36,20 @@ object IncrementalBehavior {
           acc.updated(client, f(clientAcc, clientDelta))
       }
   }
+}
 
+trait IncrementalBehaviorObject[SubT <: Tier { type T = SubT }]
+    extends SnapshottableSyntax {
+
+  type IncrementalBehaviorA[A] = SubT#IncrementalBehavior[A, _]
+
+  def constant[A](x: A): SubT#IncrementalBehavior[A, Nothing]
+
+  def makeInstances: tc.Snapshottable[IncrementalBehaviorA, SubT#Event] =
+    new tc.Snapshottable[IncrementalBehaviorA, SubT#Event] {
+      override def snapshotWith[A, B, C](
+          b: IncrementalBehaviorA[A],
+          ev: SubT#Event[B])(f: (A, B) => C): SubT#Event[C] =
+        b.snapshotWith(ev)(f)
+    }
 }
