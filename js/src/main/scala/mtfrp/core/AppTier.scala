@@ -49,9 +49,9 @@ object AppIncBehavior extends MockIncrementalBehaviorObject[AppTier] {
       val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
       val newGraph =
-        ReplicationGraphClient.ReceiverBehavior(appBeh.graph)
+        ReplicationGraphClient.ReceiverBehavior[A, DeltaA](appBeh.graph)
 
-      val deltas = newGraph.deltas.toEvent
+      val deltas = newGraph.deltas.source.toEvent
       val resets = newGraph.resets.toEvent
       // explicit types needed: SI-9772
       val union =

@@ -48,4 +48,14 @@ object ReplicationGraph {
       nodes: Seq[ReplicationGraph]
   ) extends ReplicationGraph
 
+  trait EventServerToClient extends HasDependency
+  trait EventClientToServer extends HasDependency
+
+  trait BehaviorServerToClient extends HasDependency {
+    val deltas: HasDependency
+  }
+
+  trait BehaviorClientToServer extends HasDependency {
+    val deltas: HasDependency
+  }
 }

@@ -44,7 +44,7 @@ object ClientIncBehavior extends MockIncrementalBehaviorObject {
       val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
       val newGraph =
-        ReplicationGraphServer.ReceiverBehavior(clientBeh.graph)
+        ReplicationGraphServer.ReceiverBehavior[A, DeltaA](clientBeh.graph)
 
       val transformed =
         IncrementalBehavior.transformFromNormal(clientBeh.accumulator)
@@ -52,7 +52,8 @@ object ClientIncBehavior extends MockIncrementalBehaviorObject {
       val defaultValue =
         Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
-      val behavior = newGraph.deltas.toEvent.fold(defaultValue)(transformed)
+      val deltas   = newGraph.deltas.source.toEvent
+      val behavior = deltas.fold(defaultValue)(transformed)
 
       hokkoBuilder
         .incrementalBehavior(behavior, defaultValue, newGraph, transformed)

@@ -3,15 +3,23 @@ package mtfrp.core
 import hokko.{core => HC}
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.ReplicationGraph.Pulse
-import mtfrp.core.ReplicationGraphClient.ReceiverEvent
+import mtfrp.core.ReplicationGraphClient.{ReceiverBehavior, ReceiverEvent}
 
 class ReplicationGraphClient(graph: ReplicationGraph) {
   val graphList = ReplicationGraph.toList(graph)
 
   val inputEventRouter: Message => Option[Pulse] = {
-    val receivers: Map[Int, Message => Option[Pulse]] = graphList.collect {
-      case r: ReceiverEvent[_] => (r.token, r.pulse _)
-    }.toMap
+    val receivers =
+      graphList.foldLeft(Map.empty[Int, Message => Option[Pulse]]) {
+        (acc, node) =>
+          node match {
+            case r: ReceiverEvent[_] => acc + (r.token -> r.pulse _)
+            case r: ReceiverBehavior[_, _] =>
+              val deltaAcc = acc + (r.deltas.token -> r.deltas.pulse _)
+              deltaAcc + (r.token -> r.pulse _)
+            case _ => acc
+          }
+      }
 
     (msg: Message) =>
       receivers.get(msg.id).flatMap(_ apply msg)
@@ -23,7 +31,7 @@ class ReplicationGraphClient(graph: ReplicationGraph) {
       case s: ReplicationGraphClient.SenderEvent[_] =>
         s.message
       case s: ReplicationGraphClient.SenderBehavior[_, _] =>
-        s.deltaSender.message
+        s.deltas.message
     }
     HC.Event.merge(senders)
   }
@@ -35,33 +43,42 @@ object ReplicationGraphClient {
       behavior: HC.CBehavior[Seq[Message]]
   )
 
-  case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)
-      extends ReplicationGraph.HasDependency {
-    val source: HC.EventSource[A] = HC.Event.source
-    def pulse(msg: Message): Option[Pulse] = {
-      val decoded = msg.payload.as[A]
-      decoded.toOption.map(source.->)
-    }
+  def pulse[A: Decoder](source: HC.EventSource[A],
+                        msg: Message): Option[Pulse] = {
+    val decoded = msg.payload.as[A]
+    decoded.toOption.map(source.->)
   }
 
-  case class ReceiverBehavior[A, DeltaA](dependency: ReplicationGraph)
-      extends ReplicationGraph.HasDependency {
+  case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)
+      extends ReplicationGraph.EventServerToClient {
+    val source: HC.EventSource[A] = HC.Event.source
+    def pulse(msg: Message): Option[Pulse] =
+      ReplicationGraphClient.pulse(source, msg)
+  }
+
+  case class ReceiverBehavior[A: Decoder, DeltaA: Decoder](
+      dependency: ReplicationGraph)
+      extends ReplicationGraph.BehaviorServerToClient {
     // TODO: Figure out why the deltas and resets aren't used???
-    val deltas = HC.Event.source[DeltaA]
+    override val deltas: ReceiverEvent[DeltaA] =
+      ReceiverEvent[DeltaA](dependency)
     val resets = HC.Event.source[A]
+    def pulse(msg: Message): Option[Pulse] =
+      ReplicationGraphClient.pulse(resets, msg)
   }
 
   case class SenderEvent[A: Encoder](
       event: HC.Event[A],
       dependency: ReplicationGraph
-  ) extends ReplicationGraph.HasDependency {
+  ) extends ReplicationGraph.EventClientToServer {
     val message: HC.Event[Message] = event.map(Message.fromPayload(this.token))
   }
 
   case class SenderBehavior[A: Encoder, DeltaA: Encoder](
       behavior: HC.IBehavior[A, DeltaA],
       dependency: ReplicationGraph
-  ) extends ReplicationGraph.HasDependency {
-    val deltaSender = SenderEvent(behavior.deltas, dependency)
+  ) extends ReplicationGraph.BehaviorClientToServer {
+    override val deltas: SenderEvent[DeltaA] =
+      SenderEvent(behavior.deltas, dependency)
   }
 }

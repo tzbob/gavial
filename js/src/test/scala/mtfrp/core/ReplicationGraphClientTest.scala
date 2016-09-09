@@ -1,6 +1,7 @@
 package mtfrp.core
 
 import hokko.{core => HC}
+import mtfrp.core.ReplicationGraph.Pulse
 import org.scalatest.WordSpec
 
 // FIXME: Share test scenarios between client/server impl of exitEvent
@@ -23,6 +24,35 @@ class ReplicationGraphClientTest extends WordSpec {
   }
 
   "ReplicationGraphClientTest" should {
+
+    def makeClientEvent: ClientEvent[Int] =
+      new AppEvent[Client => Option[Int]](ReplicationGraph.start).toClient
+
+    def makeClientBehavior: ClientIncBehavior[Int, Int] =
+      new AppIncBehavior[Client => Int, Client => Option[Int]](
+        ReplicationGraph.start,
+        null,
+        _ => 0).toClient
+
+    "build an input event router that deals with events, behavior deltas and behavior resets" in {
+      HasToken.reset()
+
+      val beh1 = makeClientBehavior
+      val ev1  = makeClientEvent
+
+      val combined = beh1.snapshotWith(ev1) { _ -> _ }
+
+      val router: Message => Option[Pulse] =
+        new ReplicationGraphClient(combined.graph).inputEventRouter
+
+      val resetPulse  = router(Message.fromPayload(1)(10))
+      val changePulse = router(Message.fromPayload(2)(20))
+      val eventPulse  = router(Message.fromPayload(3)(30))
+
+      assert(resetPulse.get._2 === 10)
+      assert(changePulse.get._2 === 20)
+      assert(eventPulse.get._2 === 30)
+    }
 
     "build an exitEvent with both behavior deltas and events" in {
       HasToken.reset()
