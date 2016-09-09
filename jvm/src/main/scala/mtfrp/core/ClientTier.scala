@@ -1,7 +1,6 @@
 package mtfrp
 package core
 
-import hokko.core
 import hokko.core.tc
 import io.circe.{Decoder, Encoder}
 

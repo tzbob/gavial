@@ -2,7 +2,6 @@ package mtfrp
 package core
 
 import hokko.core
-import hokko.core.tc
 
 private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
     private[core] val rep: core.Event[A],

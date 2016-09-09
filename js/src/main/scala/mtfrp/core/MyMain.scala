@@ -46,7 +46,7 @@ trait MyMain
             domPatcher.applyNewState(newVDom)
           }
         }
-
+        ()
       case _ => logger.info(s"Could not create a DomPatcher, no value for: $mainUi")
     }
   }

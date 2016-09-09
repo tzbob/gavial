@@ -1,7 +1,6 @@
 package mtfrp
 package core
 
-import hokko.core.tc
 import hokko.{core => HC}
 
 class MockEvent[T <: MockTier: MockBuilder, A](

@@ -1,8 +1,6 @@
 package mtfrp
 package core
 
-import hokko.{core => HC}
-
 class MockIncBehavior[T <: MockTier: MockBuilder, A, DeltaA](
     private[core] val graph: ReplicationGraph,
     private[core] val accumulator: (A, DeltaA) => A,

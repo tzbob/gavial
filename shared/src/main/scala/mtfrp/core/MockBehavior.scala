@@ -1,9 +1,6 @@
 package mtfrp
 package core
 
-import cats.Applicative
-import hokko.core.tc
-
 class MockBehavior[T <: MockTier: MockBuilder, A](
     private[core] val graph: ReplicationGraph
 )(implicit hokkoBuilder: HokkoBuilder[T#Replicated])

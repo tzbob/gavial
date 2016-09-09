@@ -1,7 +1,6 @@
 package mtfrp
 package core
 
-import cats.Applicative
 import cats.data.Xor
 import hokko.core.tc
 import io.circe._
@@ -64,9 +63,9 @@ object AppIncBehavior extends MockIncrementalBehaviorObject[AppTier] {
 
       val deltas = newGraph.deltas.toEvent
       val resets = newGraph.resets.toEvent
-      val union =
-        deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right) { (l, r) =>
-          Xor.right(r)
+      val union = // explicit types needed: SI-9772
+        deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right[DeltaA, A]) { (_: DeltaA, r: A) =>
+          Xor.right[DeltaA, A](r)
         }
 
       // FIXME: this is the initial value on clients before the application works,
