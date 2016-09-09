@@ -1,7 +1,8 @@
-package mtfrp
-package core
+package mtfrp.core.impl
 
 import hokko.core
+import mtfrp.core._
+import mtfrp.core.mock.MockBuilder
 
 class HokkoBehavior[T <: HokkoTier: HokkoBuilder, A](
     private[core] val rep: core.CBehavior[A],

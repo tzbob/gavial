@@ -1,5 +1,7 @@
-package mtfrp
-package core
+package mtfrp.core.mock
+
+import mtfrp.core._
+import mtfrp.core.impl.HokkoTier
 
 trait MockTier extends Tier {
   type T <: MockTier

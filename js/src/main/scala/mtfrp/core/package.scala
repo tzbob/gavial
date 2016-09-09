@@ -1,5 +1,8 @@
 package mtfrp
 
+import mtfrp.core.impl.HokkoBuilder
+import mtfrp.core.mock.MockBuilder
+
 package object core {
 
   import hokko.core

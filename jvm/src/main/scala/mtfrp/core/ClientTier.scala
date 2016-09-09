@@ -2,6 +2,8 @@ package mtfrp
 package core
 
 import io.circe.{Decoder, Encoder}
+import mtfrp.core.impl.HokkoBuilder
+import mtfrp.core.mock._
 
 // Define all Client types
 // Create all Client constructors

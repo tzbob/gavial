@@ -1,7 +1,8 @@
-package mtfrp
-package core
+package mtfrp.core.mock
 
 import hokko.{core => HC}
+import mtfrp.core._
+import mtfrp.core.impl.HokkoBuilder
 
 class MockEvent[T <: MockTier: MockBuilder, A](
     private[core] val graph: ReplicationGraph

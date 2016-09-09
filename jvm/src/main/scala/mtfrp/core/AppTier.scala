@@ -3,6 +3,8 @@ package core
 
 import hokko.core
 import io.circe._
+import mtfrp.core.impl._
+import mtfrp.core.mock.MockBuilder
 
 // Define all App types
 // Create all App constructors
