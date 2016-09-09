@@ -1,7 +1,6 @@
 package mtfrp
 package core
 
-import hokko.core.tc
 import io.circe.{Decoder, Encoder}
 
 // Define all Client types
@@ -11,9 +10,6 @@ class ClientEvent[A] private[core] (graph: ReplicationGraph)
     extends MockEvent[ClientTier, A](graph)
 
 object ClientEvent extends MockEventObject[ClientTier] {
-  implicit val mtfrpCliEventInstances: tc.Event[ClientEvent, ClientIncBehavior] =
-    this.makeInstances[ClientTier]
-
   implicit class ToAppEvent[A: Decoder: Encoder](clientEv: ClientEvent[A]) {
     def toApp(): AppEvent[(Client, A)] = {
       val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
@@ -26,18 +22,14 @@ object ClientEvent extends MockEventObject[ClientTier] {
 class ClientBehavior[A] private[core] (graph: ReplicationGraph)
     extends MockBehavior[ClientTier, A](graph)
 
-object ClientBehavior extends MockBehaviorObject[ClientTier] {
-  implicit val mtfrpBehaviorInstances = this.makeInstances
-}
+object ClientBehavior extends MockBehaviorObject[ClientTier]
 
 class ClientDiscreteBehavior[A] private[core] (
     graph: ReplicationGraph,
     initial: A
 ) extends MockDiscreteBehavior[ClientTier, A](graph, initial)
 
-object ClientDiscreteBehavior extends MockDiscreteBehaviorObject[ClientTier] {
-  implicit val mtfrpDBehaviorInstances = this.makeInstances
-}
+object ClientDiscreteBehavior extends MockDiscreteBehaviorObject[ClientTier]
 
 class ClientIncBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
@@ -46,8 +38,6 @@ class ClientIncBehavior[A, DeltaA] private[core] (
 ) extends MockIncBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
 
 object ClientIncBehavior extends MockIncrementalBehaviorObject {
-  implicit val mtfrpDBehaviorInstances = this.makeInstances
-
   implicit class ToServerBehavior[A: Decoder: Encoder,
   DeltaA: Decoder: Encoder](clientBeh: ClientIncBehavior[A, DeltaA]) {
     def toApp(): AppIncBehavior[Map[Client, A], (Client, DeltaA)] = {

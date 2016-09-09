@@ -6,7 +6,6 @@ import akka.stream._
 import akka.stream.scaladsl._
 import de.heikoseeberger.akkasse._
 import hokko.{core => HC}
-import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 

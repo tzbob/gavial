@@ -13,8 +13,6 @@ class AppEvent[A] private[core] (
 ) extends HokkoEvent[AppTier, A](rep, graph)
 
 object AppEvent extends HokkoEventObject {
-  implicit val mtfrpAppEventInstances = this.makeInstances[AppTier]
-
   implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val mockBuilder = implicitly[MockBuilder[ClientTier]]
@@ -29,9 +27,7 @@ class AppBehavior[A] private[core] (
     graph: ReplicationGraph
 ) extends HokkoBehavior[AppTier, A](rep, graph)
 
-object AppBehavior extends HokkoBehaviorObject[AppTier] {
-  implicit val mtfrpBehaviorInstances = this.makeInstances
-}
+object AppBehavior extends HokkoBehaviorObject[AppTier]
 
 class AppDiscreteBehavior[A] private[core] (
     rep: core.DBehavior[A],
@@ -39,9 +35,7 @@ class AppDiscreteBehavior[A] private[core] (
     graph: ReplicationGraph
 ) extends HokkoDiscreteBehavior[AppTier, A](rep, initial, graph)
 
-object AppDiscreteBehavior extends HokkoDiscreteBehaviorObject[AppTier] {
-  implicit val mtfrpDBehaviorInstances = this.makeInstances
-}
+object AppDiscreteBehavior extends HokkoDiscreteBehaviorObject[AppTier]
 
 class AppIncBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
@@ -54,8 +48,6 @@ class AppIncBehavior[A, DeltaA] private[core] (
                                                  accumulator)
 
 object AppIncBehavior extends HokkoIncrementalBehaviorObject[AppTier] {
-  implicit val mtfrpDBehaviorInstances = this.makeInstances
-
   implicit class ToClientBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
     def toClient(implicit da: Decoder[A],
