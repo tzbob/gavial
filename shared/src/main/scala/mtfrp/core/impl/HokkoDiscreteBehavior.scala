@@ -16,13 +16,12 @@ class HokkoDiscreteBehavior[T <: HokkoTier: HokkoBuilder, A](
   def changes(): T#Event[A] =
     builder.event(rep.changes(), graph)
 
-  def reverseApply[B, AA >: A](
-      fb: T#DiscreteBehavior[AA => B]): T#DiscreteBehavior[B] =
+  def reverseApply[B](fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B] =
     builder.discreteBehavior(fb.rep ap this.rep,
                              fb.initial(this.initial),
                              graph + fb.graph)
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(this.rep.snapshotWith(ev.rep)(f), graph + ev.graph)
 
   def toBehavior: T#Behavior[A] =

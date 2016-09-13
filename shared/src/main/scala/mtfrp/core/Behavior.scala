@@ -2,17 +2,18 @@ package mtfrp
 package core
 
 import cats.Applicative
-import cats.syntax.{ApplicativeSyntax, ApplySyntax}
+import cats.syntax.{ApplicativeSyntax, ApplySyntax, FunctorSyntax}
 import hokko.core.tc
 import hokko.syntax.SnapshottableSyntax
 
 trait Behavior[T <: Tier, A] {
-  def reverseApply[B, AA >: A](fb: T#Behavior[AA => B]): T#Behavior[B]
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
+  def reverseApply[B](fb: T#Behavior[A => B]): T#Behavior[B]
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
 }
 
 trait BehaviorObject[SubT <: Tier { type T = SubT }]
     extends ApplicativeSyntax
+    with FunctorSyntax
     with ApplySyntax
     with SnapshottableSyntax {
   def constant[A](x: A): SubT#Behavior[A]

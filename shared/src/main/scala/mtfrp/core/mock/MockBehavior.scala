@@ -10,10 +10,10 @@ class MockBehavior[T <: MockTier: MockBuilder, A](
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
-  def reverseApply[B, AA >: A](fb: T#Behavior[AA => B]): T#Behavior[B] =
+  def reverseApply[B](fb: T#Behavior[A => B]): T#Behavior[B] =
     mockBuilder.behavior(graph + fb.graph)
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     mockBuilder.event(graph + ev.graph)
 }
 

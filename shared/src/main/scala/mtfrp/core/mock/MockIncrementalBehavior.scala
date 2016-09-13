@@ -20,7 +20,7 @@ class MockIncBehavior[T <: MockTier: MockBuilder, A, DeltaA](
       fb: DeltaA => DeltaB): T#IncrementalBehavior[B, DeltaB] =
     builder.incrementalBehavior(graph, accumulator, fa(initial))
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(graph + ev.graph)
 
   def toDiscreteBehavior: T#DiscreteBehavior[A] =

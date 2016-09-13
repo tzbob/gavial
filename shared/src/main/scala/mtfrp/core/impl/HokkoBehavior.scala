@@ -12,10 +12,10 @@ class HokkoBehavior[T <: HokkoTier: HokkoBuilder, A](
 
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[T]]
 
-  def reverseApply[B, AA >: A](fb: T#Behavior[(AA) => B]): T#Behavior[B] =
+  def reverseApply[B](fb: T#Behavior[A => B]): T#Behavior[B] =
     hokkoBuilder.behavior(fb.rep ap rep, graph + fb.graph)
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     hokkoBuilder.event(rep.snapshotWith(ev.rep)(f), graph + ev.graph)
 }
 

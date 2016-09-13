@@ -12,7 +12,7 @@ trait IncrementalBehavior[T <: Tier, A, DeltaA] {
   def map[B, DeltaB](accumulator: (B, DeltaB) => B)(fa: A => B)(
       fb: DeltaA => DeltaB): T#IncrementalBehavior[B, DeltaB]
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
   def toDiscreteBehavior: T#DiscreteBehavior[A]
 }
 

@@ -28,7 +28,7 @@ class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
       accumulator
     )
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(IBehavior.syntaxSnapshottable(rep).snapshotWith(ev.rep)(f),
                   graph + ev.graph)
 
@@ -41,7 +41,7 @@ abstract class HokkoIncrementalBehaviorObject[
     extends IncrementalBehaviorObject[SubT] {
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[SubT]]
 
-  def constant[A](x: A): SubT#IncrementalBehavior[A, Nothing] =
+  def constant[A, B](x: A): SubT#IncrementalBehavior[A, B] =
     hokkoBuilder.incrementalBehavior(IBehavior.constant(x),
                                      x,
                                      ReplicationGraph.start,

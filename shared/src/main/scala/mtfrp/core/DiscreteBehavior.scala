@@ -7,14 +7,11 @@ import hokko.core.tc
 import hokko.syntax.SnapshottableSyntax
 
 trait DiscreteBehavior[T <: Tier, A] {
-  private[core] def initial: A
-
   def changes(): T#Event[A]
   def toBehavior: T#Behavior[A]
 
-  def reverseApply[B, AA >: A](
-      fb: T#DiscreteBehavior[AA => B]): T#DiscreteBehavior[B]
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
+  def reverseApply[B](fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B]
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
 }
 
 trait DiscreteBehaviorObject[SubT <: Tier { type T = SubT }]

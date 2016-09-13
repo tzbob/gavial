@@ -14,11 +14,10 @@ class MockDiscreteBehavior[T <: MockTier: MockBuilder, A](
   def changes(): T#Event[A] =
     mockBuilder.event(graph)
 
-  def reverseApply[B, AA >: A](
-      fb: T#DiscreteBehavior[AA => B]): T#DiscreteBehavior[B] =
+  def reverseApply[B](fb: T#DiscreteBehavior[A => B]): T#DiscreteBehavior[B] =
     mockBuilder.discreteBehavior(graph + fb.graph, fb.initial(initial))
 
-  def snapshotWith[B, AA >: A, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
+  def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     mockBuilder.event(graph + ev.graph)
 
   def toBehavior: T#Behavior[A] =
