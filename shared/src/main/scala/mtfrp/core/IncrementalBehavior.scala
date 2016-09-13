@@ -43,7 +43,7 @@ trait IncrementalBehaviorObject[SubT <: Tier { type T = SubT }]
 
   type IncrementalBehaviorA[A] = SubT#IncrementalBehavior[A, _]
 
-  def constant[A](x: A): SubT#IncrementalBehavior[A, Nothing]
+  def constant[A, B](x: A): SubT#IncrementalBehavior[A, B]
 
   implicit val mtfrpIncrementalBehaviorInstances: tc.Snapshottable[
     IncrementalBehaviorA,

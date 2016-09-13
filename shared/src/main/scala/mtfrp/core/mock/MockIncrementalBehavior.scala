@@ -32,7 +32,7 @@ abstract class MockIncrementalBehaviorObject[
     extends IncrementalBehaviorObject[SubT] {
   private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
 
-  def constant[A](x: A): SubT#IncrementalBehavior[A, Nothing] =
+  def constant[A, B](x: A): SubT#IncrementalBehavior[A, B] =
     mockBuilder
       .incrementalBehavior(ReplicationGraph.start, (a: A, _: Any) => a, x)
 }
