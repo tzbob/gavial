@@ -1,5 +1,5 @@
 scalaVersion in ThisBuild := "2.11.8"
-scalafmtConfig in ThisBuild := Some(file(".scalafmt"))
+scalafmtConfig in ThisBuild := Some(file(".scalafmt.conf"))
 
 lazy val root = project
   .in(file("."))
