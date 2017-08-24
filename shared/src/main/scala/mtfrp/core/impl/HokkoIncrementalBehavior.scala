@@ -19,10 +19,10 @@ class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
 
   def deltas: T#Event[DeltaA] = builder.event(rep.deltas, graph)
 
-  def map[B, DeltaB](accumulator: (B, DeltaB) => B)(fa: A => B)(
-      fb: DeltaA => DeltaB): T#IncrementalBehavior[B, DeltaB] =
+  def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
+      accumulator: (B, DeltaB) => B): T#IncrementalBehavior[B, DeltaB] =
     builder.incrementalBehavior(
-      rep.map(accumulator)(fa)(fb),
+      rep.incMap(fa)(fb)(accumulator),
       fa(initial),
       graph,
       accumulator

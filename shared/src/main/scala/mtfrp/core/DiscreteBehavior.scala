@@ -18,7 +18,7 @@ trait DiscreteBehaviorObject[SubT <: Tier { type T = SubT }]
     extends ApplicativeSyntax
     with FunctorSyntax
     with ApplySyntax
-    with SnapshottableSyntax {
+    with SnapshottableSyntax[SubT#Event, SubT#DiscreteBehavior] {
   def constant[A](x: A): SubT#DiscreteBehavior[A]
 
   implicit val mtfrpDBehaviorInstances: tc.Snapshottable[

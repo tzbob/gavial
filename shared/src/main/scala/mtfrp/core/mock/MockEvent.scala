@@ -14,8 +14,7 @@ class MockEvent[T <: MockTier: MockBuilder, A](
   def fold[B](initial: B)(f: (B, A) => B): T#IncrementalBehavior[B, A] =
     mockBuilder.incrementalBehavior(graph, f, initial)
 
-  def unionWith[B, C](b: T#Event[B])(f1: A => C)(f2: B => C)(
-      f3: (A, B) => C): T#Event[C] =
+  def unionWith(b: T#Event[A])( f3: (A, A) => A): T#Event[A] =
     mockBuilder.event(graph + b.graph)
 
   def collect[B](fb: A => Option[B]): T#Event[B] =

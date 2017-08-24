@@ -36,18 +36,15 @@ class SessionEvent[A] private[session] (
     new SessionIncrementalBehavior(newRep)
   }
 
-  def unionWith[B, C](b: SessionTier#Event[B])(f1: A => C)(
-      f2: B => C)(f3: (A, B) => C): SessionTier#Event[C] = {
-    val newRep = underlying.unionWith(b.underlying) { clientFun => c: Client =>
-      clientFun(c).map(f1)
-    } { clientFun => c: Client =>
-      clientFun(c).map(f2)
-    } { (aaClientFun, bClientFun) => c: Client =>
-      (aaClientFun(c), bClientFun(c)) match {
-        case (None, _)           => None
-        case (_, None)           => None
-        case (Some(aa), Some(b)) => Some(f3(aa, b))
-      }
+  def unionWith(b: SessionTier#Event[A])(
+      f: (A, A) => A): SessionTier#Event[A] = {
+    val newRep = underlying.unionWith(b.underlying) {
+      (aaClientFun, bClientFun) => c: Client =>
+        (aaClientFun(c), bClientFun(c)) match {
+          case (None, _)           => None
+          case (_, None)           => None
+          case (Some(aa), Some(b)) => Some(f(aa, b))
+        }
     }
 
     new SessionEvent(newRep)

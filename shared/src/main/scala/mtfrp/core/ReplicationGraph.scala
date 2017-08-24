@@ -21,6 +21,7 @@ sealed trait ReplicationGraph {
 }
 
 object ReplicationGraph {
+  import scala.language.existentials
   type Pulse = (HC.EventSource[T], T) forSome { type T }
 
   private[core] def toList(graph: ReplicationGraph): List[ReplicationGraph] = {

@@ -1,40 +1,33 @@
-scalaVersion in ThisBuild := "2.11.8"
-scalafmtConfig in ThisBuild := Some(file(".scalafmt.conf"))
+resolvers in ThisBuild += "Sonatype OSS Snapshots" at
+  "https://oss.sonatype.org/content/repositories/snapshots"
 
-lazy val root = project
-  .in(file("."))
-  .aggregate(fooJS, fooJVM)
-  .settings(publish := {}, publishLocal := {})
+organization in ThisBuild := "be.tzbob"
+scalaVersion in ThisBuild := "2.12.1"
+crossScalaVersions in ThisBuild := Seq("2.11.8", "2.12.1")
+version in ThisBuild := "0.3.0-SNAPSHOT"
 
-lazy val foo = crossProject
+scalacOptions in ThisBuild ++= Seq(
+  "-encoding",
+  "UTF-8",
+  "-feature",
+  "-deprecation",
+  "-Xlint",
+  "-Yno-adapted-args",
+  "-Ywarn-dead-code",
+  "-Ywarn-numeric-widen",
+  "-Ywarn-value-discard",
+  "-language:higherKinds"
+)
+
+lazy val multitier = crossProject
   .in(file("."))
   .settings(
-    organization := "foo",
-    name := "foo",
-    scalacOptions ++= Seq(
-      "-deprecation",
-      "-feature",
-      "-unchecked",
-      "-encoding",
-      "UTF-8",
-      "-Yinline-warnings",
-      "-Yno-adapted-args",
-      "-Ywarn-dead-code",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-value-discard",
-      "-Ywarn-unused-import",
-      "-Xfuture",
-      "-Xlint",
-      "-Xfatal-warnings",
-      "-language:higherKinds",
-      "-language:existentials"
-    ),
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats"      % "0.7.2",
-      "biz.enef" %%% "slogging"       % "0.5.0",
-      "be.tzbob" %%% "hokko"          % "0.3.1-SNAPSHOT",
-      "com.lihaoyi" %%% "scalatags"   % "0.6.0",
-      "org.scalatest" %%% "scalatest" % "3.0.0-M10" % "test"
+      "org.typelevel" %%% "cats"      % "0.9.0",
+      "biz.enef"      %%% "slogging"  % "0.5.3",
+      "be.tzbob"      %%% "hokko"     % "0.4.2-SNAPSHOT",
+      "com.lihaoyi"   %%% "scalatags" % "0.6.3",
+      "org.scalatest" %%% "scalatest" % "3.0.1" % "test"
     ) ++ Seq(
       "io.circe" %%% "circe-core",
       "io.circe" %%% "circe-generic",
@@ -44,28 +37,32 @@ lazy val foo = crossProject
   .jvmSettings(
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
-      "de.heikoseeberger" %% "akka-sse"          % "1.8.1",
-      "de.heikoseeberger" %% "akka-http-circe"   % "1.9.0",
-      "com.typesafe.akka" %% "akka-http-testkit" % Version.akka
+      "de.heikoseeberger" %% "akka-http-circe"   % "1.17.0",
+      "com.typesafe.akka" %% "akka-http"         % "10.0.9",
+      "com.typesafe.akka" %% "akka-http-testkit" % "10.0.9" % Test
     )
   )
   .jsSettings(
-    scalaJSUseRhino in Global := false,
-    persistLauncher in Compile := true,
-    persistLauncher in Test := false,
+    scalaJSUseMainModuleInitializer := true,
     jsDependencies += RuntimeDOM,
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "0.9.1",
-      "be.tzbob" %%% "scalatags-vdom"  % "0.2-SNAPSHOT"
+      "org.scala-js" %%% "scalajs-dom"     % "0.9.1",
+      "be.tzbob"     %%% "scalatags-hokko" % "0.3.0-SNAPSHOT"
     )
   )
 
 // Needed, so sbt finds the projects
-lazy val fooJS = foo.js.enablePlugins(ScalaJSWeb)
-
-lazy val fooJVM = foo.jvm
+lazy val multitierJS = multitier.js
+  .enablePlugins(ScalaJSWeb)
+  .enablePlugins(ScalaJSBundlerPlugin)
   .settings(
-    scalaJSProjects := Seq(fooJS),
+    enableReloadWorkflow := true,
+    useYarn := true
+  )
+
+lazy val multitierJVM = multitier.jvm
+  .settings(
+    scalaJSProjects := Seq(multitierJS),
     pipelineStages in Assets := Seq(scalaJSPipeline),
     managedClasspath in Runtime += (packageBin in Assets).value
   )

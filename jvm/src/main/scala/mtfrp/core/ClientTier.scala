@@ -16,7 +16,7 @@ object ClientEvent extends MockEventObject[ClientTier] {
     def toApp(): AppEvent[(Client, A)] = {
       val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
       val receiverGraph = ReplicationGraphServer.ReceiverEvent(clientEv.graph)
-      hokkoBuilder.event(receiverGraph.source.toEvent, receiverGraph)
+      hokkoBuilder.event(receiverGraph.source, receiverGraph)
     }
   }
 }
@@ -54,7 +54,7 @@ object ClientIncBehavior extends MockIncrementalBehaviorObject {
       val defaultValue =
         Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
-      val deltas   = newGraph.deltas.source.toEvent
+      val deltas   = newGraph.deltas.source
       val behavior = deltas.fold(defaultValue)(transformed)
 
       hokkoBuilder

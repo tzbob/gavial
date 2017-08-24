@@ -4,8 +4,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream._
 import akka.stream.scaladsl._
-import de.heikoseeberger.akkahttpcirce.CirceSupport
-import de.heikoseeberger.akkasse._
+
 import hokko.{core => HC}
 import io.circe._
 import io.circe.generic.auto._
@@ -15,9 +14,12 @@ import slogging.LazyLogging
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
+import akka.http.scaladsl.model.sse._
+import akka.http.scaladsl.marshalling.sse._
+
 object RouteCreator extends LazyLogging {
-  import CirceSupport._
   import EventStreamMarshalling._
+  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   type SourceQueue[A] = SourceQueueWithComplete[A]
   type SseQueue       = SourceQueue[ServerSentEvent]
@@ -46,7 +48,7 @@ object RouteCreator extends LazyLogging {
           complete {
             val cid = Client(cuuid)
             onConnect(cid, source).keepAlive(10.second,
-                                             () => ServerSentEvent.Heartbeat)
+                                             () => ServerSentEvent.heartbeat)
           }
         }
       }
@@ -95,8 +97,8 @@ object RouteCreator extends LazyLogging {
         val sse =
           ServerSentEvent(messages.asJson.noSpaces, name)
         val qOffer = queue.offer(sse)
-        qOffer.onFailure {
-          case t => logger.info(s"Could not offer $sse to $queue: $t")
+        qOffer.failed.foreach { t =>
+          logger.info(s"Could not offer $sse to $queue: $t")
         }
       case _ => logger.info(s"No pulse created")
     }
@@ -107,7 +109,7 @@ object RouteCreator extends LazyLogging {
 class RouteCreator(graph: ReplicationGraph) {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
-  val engine: HC.Engine      = HC.Engine.compile(Seq(exitData.event), Nil)
+  val engine: HC.Engine      = HC.Engine.compile(exitData.event)
 
   val exitRoute: Route = {
     val queueSize = Int.MaxValue // FIXME: pick something sensible

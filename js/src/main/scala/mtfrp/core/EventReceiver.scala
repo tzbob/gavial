@@ -1,6 +1,5 @@
 package mtfrp.core
 
-import cats.data.Xor
 import hokko.{core => HC}
 import io.circe._
 import io.circe.generic.auto._
@@ -14,7 +13,7 @@ class EventReceiver(rgc: ReplicationGraphClient,
   private[this] val pulseMakers = rgc.inputEventRouter
 
   def decodeAsPulses(
-      messages: String): Xor[Error, List[ReplicationGraph.Pulse]] = {
+      messages: String): Either[Error, List[ReplicationGraph.Pulse]] = {
     val messageXor = decode[List[Message]](messages)
     messageXor.map { messages =>
       val maybePulses = messages.map { message =>
@@ -31,8 +30,8 @@ class EventReceiver(rgc: ReplicationGraphClient,
     val decodeAndFire = { (str: String) =>
       val decoded = decodeAsPulses(str)
       decoded match {
-        case Xor.Right(pulses) => engine.fire(pulses)
-        case Xor.Left(err) =>
+        case Right(pulses) => engine.fire(pulses)
+        case Left(err) =>
           logger.info(s"Could not decode: $str, error: $err")
       }
     }

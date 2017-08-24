@@ -1,20 +1,25 @@
 package mtfrp.core
 
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.NotUsed
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server._
 import akka.stream._
 import akka.stream.scaladsl._
-import de.heikoseeberger.akkasse._
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import hokko.{core => HC}
 import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import akka.http.scaladsl.model.sse._
+import akka.http.scaladsl.unmarshalling.sse._
+import akka.http.scaladsl.model._
 
 class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
-
   import EventStreamUnmarshalling._
+
+  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   "RouteCreator" must {
 
@@ -46,11 +51,13 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
       }
 
       val post =
-        HttpRequest(HttpMethods.POST,
-                    uri = s"/${Names.toServerUpdates}/${client0.id.toString}",
-                    entity = HttpEntity(
-                      akka.http.scaladsl.model.MediaTypes.`application/json`,
-                      input.asJson.noSpaces))
+        HttpRequest(
+          HttpMethods.POST,
+          uri = s"/${Names.toServerUpdates}/${client0.id.toString}",
+          entity =
+            HttpEntity(akka.http.scaladsl.model.MediaTypes.`application/json`,
+                       input.asJson.noSpaces)
+        )
 
       post ~> route ~> check {
         assert(status === StatusCodes.OK)
@@ -59,13 +66,13 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
 
     "queue the exit event on a sourcequeue" in {
       val eventSource = HC.Event.source[Client => Int]
-      val engine      = HC.Engine.compile(List(eventSource.toEvent), Nil)
+      val engine      = HC.Engine.compile(eventSource)
 
       val client    = ClientGenerator.fresh
       val queueSize = Int.MaxValue
       val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
       val mappedSrc =
-        RouteCreator.queueUpdates(eventSource.toEvent, engine)(client, src)
+        RouteCreator.queueUpdates(eventSource, engine)(client, src)
 
       val range  = Range(1, 10)
       val future = mappedSrc.grouped(range.size).runWith(Sink.head)
@@ -84,11 +91,11 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
     "queue the resets on a sourcequeue" in {
       val eventSource = HC.Event.source[Client => Int]
       val init        = 0
-      val beh = eventSource.toEvent.fold((c: Client) => init) {
+      val beh = eventSource.fold((c: Client) => init) {
         (accF, newF) => (c: Client) =>
           accF(c) + newF(c)
       }
-      val engine = HC.Engine.compile(Nil, Seq(beh.toCBehavior))
+      val engine = HC.Engine.compile(beh.toCBehavior)
 
       val client    = ClientGenerator.fresh
       val queueSize = Int.MaxValue
@@ -119,7 +126,7 @@ class RouteCreatorTest extends WordSpec with Matchers with ScalatestRouteTest {
       Get(s"/${Names.toClientUpdates}/${client0.id}") ~> route ~> check {
         assert(status === StatusCodes.OK)
 
-        val events = responseAs[Source[ServerSentEvent, Any]]
+        val events = responseAs[Source[ServerSentEvent, NotUsed]]
 
         val result = Await.result(
           events.runFold(Vector.empty[ServerSentEvent])(_ :+ _),

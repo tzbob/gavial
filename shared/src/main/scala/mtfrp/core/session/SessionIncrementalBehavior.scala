@@ -17,20 +17,21 @@ class SessionIncrementalBehavior[A, DeltaA] private[session] (
 
   def deltas: SessionTier#Event[DeltaA] = new SessionEvent(underlying.deltas)
 
-  def map[B, DeltaB](accumulator: (B, DeltaB) => B)(fa: A => B)(
-      fb: DeltaA => DeltaB): SessionTier#IncrementalBehavior[B, DeltaB] = {
+  def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
+      accumulator: (B, DeltaB) => B)
+    : SessionTier#IncrementalBehavior[B, DeltaB] = {
 
     val newUnderlying: AppIncBehavior[Client => B, Client => Option[DeltaB]] =
-      underlying.map {
+      underlying.map { (cf: (Client => A)) => c: Client =>
+        fa(cf(c))
+      } { (cf: (Client => Option[DeltaA])) => c: Client =>
+        cf(c).map(fb)
+      } {
         (accF: (Client => B), newF: (Client => Option[DeltaB])) => c: Client =>
           newF(c) match {
             case Some(newDelta) => accumulator(accF(c), newDelta)
             case None           => accF(c)
           }
-      } { (cf: (Client => A)) => c: Client =>
-        fa(cf(c))
-      } { (cf: (Client => Option[DeltaA])) => c: Client =>
-        cf(c).map(fb)
       }
 
     new SessionIncrementalBehavior(newUnderlying)

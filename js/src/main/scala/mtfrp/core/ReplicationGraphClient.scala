@@ -59,7 +59,6 @@ object ReplicationGraphClient {
   case class ReceiverBehavior[A: Decoder, DeltaA: Decoder](
       dependency: ReplicationGraph)
       extends ReplicationGraph.BehaviorServerToClient {
-    // TODO: Figure out why the deltas and resets aren't used???
     override val deltas: ReceiverEvent[DeltaA] =
       ReceiverEvent[DeltaA](dependency)
     val resets = HC.Event.source[A]

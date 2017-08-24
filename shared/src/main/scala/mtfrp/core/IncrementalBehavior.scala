@@ -9,8 +9,8 @@ trait IncrementalBehavior[T <: Tier, A, DeltaA] {
 
   def changes: T#Event[A]
   def deltas: T#Event[DeltaA]
-  def map[B, DeltaB](accumulator: (B, DeltaB) => B)(fa: A => B)(
-      fb: DeltaA => DeltaB): T#IncrementalBehavior[B, DeltaB]
+  def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
+      accumulator: (B, DeltaB) => B): T#IncrementalBehavior[B, DeltaB]
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
   def toDiscreteBehavior: T#DiscreteBehavior[A]
@@ -39,15 +39,14 @@ object IncrementalBehavior {
 }
 
 trait IncrementalBehaviorObject[SubT <: Tier { type T = SubT }]
-    extends SnapshottableSyntax {
+    extends SnapshottableSyntax[SubT#Event, SubT#DiscreteBehavior] {
 
   type IncrementalBehaviorA[A] = SubT#IncrementalBehavior[A, _]
 
   def constant[A, B](x: A): SubT#IncrementalBehavior[A, B]
 
-  implicit val mtfrpIncrementalBehaviorInstances: tc.Snapshottable[
-    IncrementalBehaviorA,
-    SubT#Event] =
+  implicit val mtfrpIncrementalBehaviorInstances
+    : tc.Snapshottable[IncrementalBehaviorA, SubT#Event] =
     new tc.Snapshottable[IncrementalBehaviorA, SubT#Event] {
       override def snapshotWith[A, B, C](
           b: IncrementalBehaviorA[A],

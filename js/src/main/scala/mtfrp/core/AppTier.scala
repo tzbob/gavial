@@ -1,7 +1,7 @@
 package mtfrp
 package core
 
-import cats.data.Xor
+import hokko.core.{IBehavior, Event => HEvent}
 import io.circe._
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
@@ -17,7 +17,7 @@ object AppEvent extends MockEventObject {
     def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
       val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
       val newGraph     = ReplicationGraphClient.ReceiverEvent(appEv.graph)
-      hokkoBuilder.event(newGraph.source.toEvent, newGraph)
+      hokkoBuilder.event(newGraph.source, newGraph)
     }
   }
 }
@@ -40,58 +40,69 @@ class AppIncBehavior[A, DeltaA] private[core] (
     initial: A
 ) extends MockIncBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
 
-object AppIncBehavior extends MockIncrementalBehaviorObject[AppTier] {
+import slogging.LazyLogging
+
+object AppIncBehavior
+    extends MockIncrementalBehaviorObject[AppTier]
+    with LazyLogging {
   implicit class ReplicableIBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
 
-    def toClient(implicit da: Decoder[A],
-                 dda: Decoder[DeltaA],
-                 ea: Encoder[A],
-                 eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
+    def toClient(
+        implicit da: Decoder[A],
+        dda: Decoder[DeltaA],
+        ea: Encoder[A],
+        eda: Encoder[DeltaA]): ClientIncBehavior[A, Either[DeltaA, A]] = {
       val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
       val newGraph =
         ReplicationGraphClient.ReceiverBehavior[A, DeltaA](appBeh.graph)
 
-      val deltas = newGraph.deltas.source.toEvent
-      val resets = newGraph.resets.toEvent
-      // explicit types needed: SI-9772
-      val union =
-        deltas.unionWith(resets)(Xor.left[DeltaA, A])(Xor.right[DeltaA, A]) {
-          (_: DeltaA, r: A) =>
-            Xor.right[DeltaA, A](r)
-        }
+      val deltas = newGraph.deltas.source
+      val resets = newGraph.resets
 
-      // FIXME: this is the initial value on clients before the application works,
-      // we should do something smart here
-      //   1. use the latest value on the server [TODO]]
-      //   2. use the initial server values [DONE]
+      // explicit types needed: SI-9772
+
+      val lefts: HEvent[Either[DeltaA, A]] = deltas.map(Left.apply[DeltaA, A])
+      val rights: HEvent[Either[DeltaA, A]] =
+        resets.map(Right.apply[DeltaA, A])
+      val union: HEvent[Either[DeltaA, A]] = lefts.unionWith(rights) {
+        case (_, Right(r)) => Right(r)
+        case (Left(l), _)  => Left(l)
+        case (_, _)        =>
+          logger.error("Deltas and Resets mixed up.")
+          sys.error("Deltas and Resets mixed up.")
+      }
+
+      // TODO: Improve with an initial value reader/injector
+      /*
+      This is correct, the actual initial values are sent as a
+      reset request, the initial values of behaviors are only used as
+      an asap-initialisation mechanism.
+       */
       val init: A = appBeh.initial(ClientGenerator.static)
 
       val transformedAccumulator =
         IncrementalBehavior.transformToNormal(appBeh.accumulator)
 
-      val replicatedBehavior = union.fold(init) { (acc, n) =>
-        n match {
-          case Xor.Left(delta)  => transformedAccumulator(acc, delta)
-          case Xor.Right(reset) => reset
+      val replicatedBehavior: IBehavior[A, Either[DeltaA, A]] =
+        union.fold(init) { (acc, n) =>
+          n match {
+            case Left(delta)  => transformedAccumulator(acc, delta)
+            case Right(reset) => reset
+          }
+        }
+
+      val f: (A, Either[DeltaA, A]) => A = (whole, either) => {
+        either match {
+          case Left(deltaA) =>
+            transformedAccumulator(whole, deltaA)
+          case Right(a) =>
+            whole
         }
       }
 
-      val justDeltas = replicatedBehavior.deltas.collect { xor =>
-        xor match {
-          case Xor.Left(delta) => Some(delta)
-          case _               => None
-        }
-      }
-
-      val replicatedBehaviorWithoutXor =
-        replicatedBehavior.withDeltas(init, justDeltas)
-
-      hokkoBuilder.incrementalBehavior(replicatedBehaviorWithoutXor,
-                                       init,
-                                       newGraph,
-                                       transformedAccumulator)
+      hokkoBuilder.incrementalBehavior(replicatedBehavior, init, newGraph, f)
     }
   }
 }

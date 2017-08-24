@@ -4,16 +4,17 @@ import hokko.core.Engine
 import hokko.{core => HC}
 import org.scalajs.dom
 import slogging.LazyLogging
+import snabbdom.VNode
 
+import scala.language.reflectiveCalls
 import scala.scalajs.js
-import scalatags.vdom.Builder
-import scalatags.vdom.raw.VirtualDom.VTreeChild
+import scalatags.hokko.{Builder, DomPatcher}
 
 trait MyMain
     extends js.JSApp
-    with FrpMain[Builder, VTreeChild, VTreeChild]
+    with FrpMain[Builder, Engine => VNode, Engine => VNode]
     with LazyLogging {
-  val html = scalatags.VDom
+  val html = scalatags.Hokko
 
   def main(): Unit = {
     val clientId = ClientGenerator.static.id
@@ -28,23 +29,24 @@ trait MyMain
   }
 
   def applyHtml(engine: Engine, mainUi: HC.DBehavior[HTML]): Unit = {
-    val initialVDom = engine.askCurrentValues()(mainUi.toCBehavior)
+    val initialVDom: Option[HTML] =
+      engine.askCurrentValues()(mainUi.toCBehavior)
 
     val domPatcherOpt =
-      initialVDom.map(v => new DomPatcher(v.render))
+      initialVDom.map(v => new DomPatcher(v.render(engine)))
 
     domPatcherOpt match {
       case Some(domPatcher) =>
         def onLoad(x: Any) = {
           val el = dom.document.getElementById("mtfrpcontent")
-          el.replaceChild(domPatcher.renderedElement, el.firstChild)
+          el.replaceChild(domPatcher.parent, el.firstChild)
         }
         dom.document.addEventListener("DOMContentLoaded", onLoad _)
 
         engine.subscribeForPulses { pulses =>
           val newVDomOpt = pulses(mainUi.changes).map(_.render)
-          newVDomOpt.foreach { newVDom =>
-            domPatcher.applyNewState(newVDom)
+          newVDomOpt.foreach { (newVDom: (Engine) => VNode) =>
+            domPatcher.applyNewState(newVDom(engine))
           }
         }
         ()

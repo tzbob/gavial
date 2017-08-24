@@ -9,13 +9,13 @@ class ReplicationGraphClientTest extends WordSpec {
 
   def makeAppEvent: (HC.EventSource[Int], AppEvent[(Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> ClientEvent(src.toEvent).toApp
+    src -> ClientEvent(src).toApp
   }
 
   def makeAppBehavior: (HC.EventSource[Int],
                         AppIncBehavior[Map[Client, Int], (Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> makeCountingBehavior(ClientEvent(src.toEvent))
+    src -> makeCountingBehavior(ClientEvent(src))
   }
 
   def makeCountingBehavior(beh1src: ClientEvent[Int])
@@ -28,7 +28,7 @@ class ReplicationGraphClientTest extends WordSpec {
     def makeClientEvent: ClientEvent[Int] =
       new AppEvent[Client => Option[Int]](ReplicationGraph.start).toClient
 
-    def makeClientBehavior: ClientIncBehavior[Int, Int] =
+    def makeClientBehavior: ClientIncBehavior[Int, Either[Int, Int]] =
       new AppIncBehavior[Client => Int, Client => Option[Int]](
         ReplicationGraph.start,
         null,
@@ -63,7 +63,7 @@ class ReplicationGraphClientTest extends WordSpec {
       val combined  = beh1.toDiscreteBehavior.sampledBy(ev1)
       val exitEvent = new ReplicationGraphClient(combined.graph).exitEvent
 
-      val engine = HC.Engine.compile(Seq(exitEvent), Nil)
+      val engine = HC.Engine.compile(exitEvent)
 
       var fired = false
       engine.subscribeForPulses { pulses =>

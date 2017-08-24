@@ -10,9 +10,24 @@ import akka.stream.ActorMaterializer
 
 import scala.concurrent.Future
 import scala.io.StdIn
+import scala.language.dynamics
+import scalatags.generic.Attr
 import scalatags.text.Builder
 
 trait MyMain extends FrpMain[Builder, String, String] {
+
+  trait Dummy extends Dynamic {
+    def selectDynamic(methodName: String): Dummy = ???
+    def applyDynamic(methodName: String)(argument: Any): Dummy = ???
+  }
+
+  def listen(tag: html.TypedTag[_])(b: ClientBehavior[_])(
+      selector: Dummy => Any): html.Tag = ???
+
+  implicit def attrSrc[T] = new html.AttrValue[ClientEvent[T]] {
+    override def apply(t: Builder, a: Attr, v: ClientEvent[T]): Unit = ???
+  }
+
   val html = scalatags.Text
 
   def main(args: Array[String]): Unit = {

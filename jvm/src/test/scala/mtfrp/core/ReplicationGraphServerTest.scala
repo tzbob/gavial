@@ -6,16 +6,16 @@ import org.scalatest.{Matchers, WordSpec}
 
 class ReplicationGraphServerTest extends WordSpec with Matchers {
 
-  def makeClientEvent: (HC.EventSource[Client => Option[Int]],
-                        ClientEvent[Int]) = {
+  def makeClientEvent
+    : (HC.EventSource[Client => Option[Int]], ClientEvent[Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> AppEvent(src.toEvent).toClient
+    src -> AppEvent(src).toClient
   }
 
-  def makeClientBehavior: (HC.EventSource[Client => Option[Int]],
-                           ClientIncBehavior[Int, Int]) = {
+  def makeClientBehavior
+    : (HC.EventSource[Client => Option[Int]], ClientIncBehavior[Int, Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> makeCountingBehavior(AppEvent(src.toEvent))
+    src -> makeCountingBehavior(AppEvent(src))
   }
 
   def makeCountingBehavior(beh1src: AppEvent[Client => Option[Int]])
@@ -39,7 +39,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val combined  = beh1.toDiscreteBehavior.sampledBy(ev1)
         val exitEvent = new ReplicationGraphServer(combined.graph).exitEvent
 
-        val engine = HC.Engine.compile(Seq(exitEvent), Nil)
+        val engine = HC.Engine.compile(exitEvent)
 
         var fired = false
         engine.subscribeForPulses { pulses =>
@@ -75,7 +75,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val exitBehavior =
           new ReplicationGraphServer(combined.graph).exitBehavior
 
-        val engine = HC.Engine.compile(Seq.empty, Seq(exitBehavior))
+        val engine = HC.Engine.compile(exitBehavior)
 
         val value = engine.askCurrentValues() apply exitBehavior
         val toSet = value.get(ClientGenerator.fresh).toSet

@@ -1,10 +1,12 @@
 package mtfrp.core
 
+import hokko.core.Engine
 import org.scalajs.dom
 import org.scalajs.dom.raw.Element
 import org.scalatest.WordSpec
 
 import scalatags.generic.Bundle
+import scalatags.hokko.DomPatcher
 
 class Container[Builder, Output <: FragT, FragT](
     val bundle: Bundle[Builder, Output, FragT]) {
@@ -25,7 +27,7 @@ class DomPatcherTest extends WordSpec {
   "DomPatcherTest" should {
 
     "add and remove appropriate tags when new state is applied" in {
-      import scalatags.VDom.all._
+      import scalatags.Hokko.all._
 
       def checkInitial(element: Element): Unit = {
         assert(element.tagName.toLowerCase === "div")
@@ -33,15 +35,16 @@ class DomPatcherTest extends WordSpec {
         ()
       }
 
-      val init = div.render
+      val engine = Engine.compile()
+      val init   = div.render(engine)
 
       val patcher = new DomPatcher(init)
-      val element = patcher.renderedElement
+      val element = patcher.parent.firstElementChild
       dom.document.body.appendChild(element)
 
       checkInitial(element)
 
-      patcher.applyNewState(div(h1("Hello")).render)
+      patcher.applyNewState(div(h1("Hello")).render(engine))
 
       assert(element.tagName.toLowerCase() === "div")
       assert(element.children.length === 1)
@@ -64,14 +67,15 @@ class DomPatcherTest extends WordSpec {
       val element     = jsContainer.divHeadingP.render
       checkInitial(element)
 
-      val vdomContainer = new Container(scalatags.VDom)
+      val engine        = Engine.compile()
+      val vdomContainer = new Container(scalatags.Hokko)
       val patcher =
-        new DomPatcher(vdomContainer.divHeadingP.render, Some(element))
+        new DomPatcher(vdomContainer.divHeadingP.render(engine), Some(element))
 
-      patcher.applyNewState(vdomContainer.divHeadingNoP.render)
+      patcher.applyNewState(vdomContainer.divHeadingNoP.render(engine))
       assert(element.childElementCount === 1)
 
-      patcher.applyNewState(vdomContainer.divHeadingP.render)
+      patcher.applyNewState(vdomContainer.divHeadingP.render(engine))
       checkInitial(element)
     }
 

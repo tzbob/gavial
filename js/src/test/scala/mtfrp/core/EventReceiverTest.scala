@@ -21,7 +21,7 @@ class EventReceiverTest extends WordSpec with Matchers {
       }
 
       val ev1    = AppEvent.empty[Client => Option[Int]].toClient
-      val engine = HC.Engine.compile(List(ev1.rep), Nil)
+      val engine = HC.Engine.compile(ev1.rep)
       new EventReceiver(new ReplicationGraphClient(ev1.graph),
                         engine,
                         listener).restart("test")
@@ -37,7 +37,7 @@ class EventReceiverTest extends WordSpec with Matchers {
 
       val exit = ev1.unionLeft(ev2)
 
-      val engine = HC.Engine.compile(List(exit.rep), Nil)
+      val engine = HC.Engine.compile(exit.rep)
 
       val rcv =
         new EventReceiver(new ReplicationGraphClient(exit.graph), engine, null)

@@ -13,9 +13,8 @@ private[core] class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
   def fold[B](initial: B)(f: (B, A) => B): T#IncrementalBehavior[B, A] =
     hokkoBuilder.incrementalBehavior(rep.fold(initial)(f), initial, graph, f)
 
-  def unionWith[B, C](b: T#Event[B])(f1: A => C)(f2: B => C)(
-      f3: (A, B) => C): T#Event[C] =
-    hokkoBuilder.event(rep.unionWith(b.rep)(f1)(f2)(f3), graph + b.graph)
+  def unionWith(other: T#Event[A])(f: (A, A) => A): T#Event[A] =
+    hokkoBuilder.event(rep.unionWith(other.rep)(f), graph + other.graph)
 
   def collect[B](fb: A => Option[B]): T#Event[B] =
     hokkoBuilder.event(rep.collect(fb), graph)
