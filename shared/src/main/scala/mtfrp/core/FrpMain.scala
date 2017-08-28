@@ -7,4 +7,6 @@ trait FrpMain[Builder, Output <: FragT, FragT] {
 
   type HTML = TypedTag[Builder, Output, FragT]
   def ui: ClientDiscreteBehavior[HTML]
+
+  val UI: Any
 }

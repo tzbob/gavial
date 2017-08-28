@@ -11,7 +11,14 @@ import mtfrp.core.mock._
 class ClientEvent[A] private[core] (graph: ReplicationGraph)
     extends MockEvent[ClientTier, A](graph)
 
+class ClientEventSource[A] private[core] (
+    graph: ReplicationGraph
+) extends ClientEvent[A](graph)
+
 object ClientEvent extends MockEventObject[ClientTier] {
+  def source[A]: ClientEventSource[A] =
+    new ClientEventSource(ReplicationGraph.start)
+
   implicit class ToAppEvent[A: Decoder: Encoder](clientEv: ClientEvent[A]) {
     def toApp(): AppEvent[(Client, A)] = {
       val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
@@ -24,7 +31,14 @@ object ClientEvent extends MockEventObject[ClientTier] {
 class ClientBehavior[A] private[core] (graph: ReplicationGraph)
     extends MockBehavior[ClientTier, A](graph)
 
-object ClientBehavior extends MockBehaviorObject[ClientTier]
+class ClientBehaviorSink[A] private[core] (graph: ReplicationGraph)
+    extends ClientBehavior[A](graph)
+
+object ClientBehavior extends MockBehaviorObject[ClientTier] {
+  def sink[A](default: A): ClientBehaviorSink[A] = new ClientBehaviorSink(
+    ReplicationGraph.start
+  )
+}
 
 class ClientDiscreteBehavior[A] private[core] (
     graph: ReplicationGraph,

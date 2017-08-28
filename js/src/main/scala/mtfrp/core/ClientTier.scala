@@ -13,7 +13,15 @@ class ClientEvent[A] private[core] (rep: core.Event[A],
                                     graph: ReplicationGraph)
     extends HokkoEvent[ClientTier, A](rep, graph)
 
+class ClientEventSource[A] private[core] (
+    override val rep: core.EventSource[A],
+    graph: ReplicationGraph
+) extends ClientEvent[A](rep, graph)
+
 object ClientEvent extends HokkoEventObject {
+  def source[A]: ClientEventSource[A] =
+    new ClientEventSource(core.Event.source[A], ReplicationGraph.start)
+
   implicit class ToAppEvent[A: Decoder: Encoder](clientEv: ClientEvent[A]) {
     def toApp(): AppEvent[(Client, A)] = {
       val mockBuilder = implicitly[MockBuilder[AppTier]]
@@ -29,7 +37,17 @@ class ClientBehavior[A] private[core] (
     graph: ReplicationGraph
 ) extends HokkoBehavior[ClientTier, A](rep, graph)
 
-object ClientBehavior extends HokkoBehaviorObject[ClientTier]
+class ClientBehaviorSink[A] private[core] (
+    override val rep: core.CBehaviorSource[A],
+    graph: ReplicationGraph
+) extends ClientBehavior[A](rep, graph)
+
+object ClientBehavior extends HokkoBehaviorObject[ClientTier] {
+  def sink[A](default: A): ClientBehaviorSink[A] = new ClientBehaviorSink(
+    core.CBehavior.source(default),
+    ReplicationGraph.start
+  )
+}
 
 class ClientDiscreteBehavior[A] private[core] (
     rep: core.DBehavior[A],
