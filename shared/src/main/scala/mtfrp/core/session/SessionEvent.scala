@@ -49,9 +49,6 @@ class SessionEvent[A] private[session] (
 
     new SessionEvent(newRep)
   }
-
-  def toClient(implicit dec: Decoder[A], enc: Encoder[A]): ClientEvent[A] =
-    underlying.toClient
 }
 
 object SessionEvent extends EventObject[SessionTier] {
@@ -63,4 +60,9 @@ object SessionEvent extends EventObject[SessionTier] {
     }
     new SessionEvent(AppEvent(hcEv))
   }
+
+  def toClient[A](sessionEvent: SessionEvent[A])(
+      implicit dec: Decoder[A],
+      enc: Encoder[A]): ClientEvent[A] =
+    AppEvent.toClient(sessionEvent.underlying)
 }

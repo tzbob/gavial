@@ -43,7 +43,6 @@ lazy val multitier = crossProject
     )
   )
   .jsSettings(
-    scalaJSUseMainModuleInitializer := true,
     enableReloadWorkflow := true,
     useYarn := true,
     npmDependencies in Test += "event-source-polyfill" -> "0.0.9",
@@ -57,11 +56,26 @@ lazy val multitier = crossProject
 // Needed, so sbt finds the projects
 lazy val multitierJS = multitier.js
   .enablePlugins(ScalaJSBundlerPlugin)
-  .enablePlugins(ScalaJSWeb)
-
 lazy val multitierJVM = multitier.jvm
+
+lazy val examples = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("./examples/"))
+  .jsSettings(
+    enableReloadWorkflow := true,
+    useYarn := true,
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSModuleKind := ModuleKind.CommonJSModule
+  )
+
+lazy val examplesJS = examples.js
+  .dependsOn(multitierJS)
+  .enablePlugins(ScalaJSBundlerPlugin)
+  .enablePlugins(ScalaJSWeb)
+lazy val examplesJVM = examples.jvm
+  .dependsOn(multitierJVM)
   .settings(
-    scalaJSProjects := Seq(multitierJS),
+    scalaJSProjects := Seq(examplesJS),
     pipelineStages in Assets := Seq(scalaJSPipeline),
     managedClasspath in Runtime += (packageBin in Assets).value
   )

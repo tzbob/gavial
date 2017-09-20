@@ -75,8 +75,8 @@ trait MyMain extends FrpMain[Builder, String, String] {
         val rawHtml = html.tags.html(
           head(
             script(
-              src :=
-                "resources/multitier-fastopt-bundle.js")
+              src := javascriptResults
+            )
           ),
           body(id := "mtfrpcontent", content)
         )
@@ -84,4 +84,6 @@ trait MyMain extends FrpMain[Builder, String, String] {
       }
     }
   }
+
+  val javascriptResults: String
 }

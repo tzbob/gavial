@@ -19,12 +19,10 @@ object ClientEvent extends MockEventObject[ClientTier] {
   def source[A]: ClientEventSource[A] =
     new ClientEventSource(ReplicationGraph.start)
 
-  implicit class ToAppEvent[A: Decoder: Encoder](clientEv: ClientEvent[A]) {
-    def toApp(): AppEvent[(Client, A)] = {
-      val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
-      val receiverGraph = ReplicationGraphServer.ReceiverEvent(clientEv.graph)
-      hokkoBuilder.event(receiverGraph.source, receiverGraph)
-    }
+  def toApp[A: Decoder: Encoder](clientEv: ClientEvent[A]) = {
+    val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
+    val receiverGraph = ReplicationGraphServer.ReceiverEvent(clientEv.graph)
+    hokkoBuilder.event(receiverGraph.source, receiverGraph)
   }
 }
 
@@ -54,26 +52,24 @@ class ClientIncBehavior[A, DeltaA] private[core] (
 ) extends MockIncBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
 
 object ClientIncBehavior extends MockIncrementalBehaviorObject {
-  implicit class ToServerBehavior[A: Decoder: Encoder,
-  DeltaA: Decoder: Encoder](clientBeh: ClientIncBehavior[A, DeltaA]) {
-    def toApp(): AppIncBehavior[Map[Client, A], (Client, DeltaA)] = {
-      val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
+  def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
+      clientBeh: ClientIncBehavior[A, DeltaA]) = {
+    val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
-      val newGraph =
-        ReplicationGraphServer.ReceiverBehavior[A, DeltaA](clientBeh.graph)
+    val newGraph =
+      ReplicationGraphServer.ReceiverBehavior[A, DeltaA](clientBeh.graph)
 
-      val transformed =
-        IncrementalBehavior.transformFromNormal(clientBeh.accumulator)
-      // FIXME: relying on Map.default is dangerous
-      val defaultValue =
-        Map.empty[Client, A].withDefaultValue(clientBeh.initial)
+    val transformed =
+      IncrementalBehavior.transformFromNormal(clientBeh.accumulator)
+    // FIXME: relying on Map.default is dangerous
+    val defaultValue =
+      Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
-      val deltas   = newGraph.deltas.source
-      val behavior = deltas.fold(defaultValue)(transformed)
+    val deltas   = newGraph.deltas.source
+    val behavior = deltas.fold(defaultValue)(transformed)
 
-      hokkoBuilder
-        .incrementalBehavior(behavior, defaultValue, newGraph, transformed)
-    }
+    hokkoBuilder
+      .incrementalBehavior(behavior, defaultValue, newGraph, transformed)
   }
 }
 

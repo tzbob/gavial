@@ -15,13 +15,17 @@ class AppEvent[A] private[core] (
 ) extends HokkoEvent[AppTier, A](rep, graph)
 
 object AppEvent extends HokkoEventObject {
-  implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
-    def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] = {
-      val mockBuilder = implicitly[MockBuilder[ClientTier]]
-      val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
-      mockBuilder.event(newGraph)
-    }
+  def toClient[A](appEv: AppEvent[Client => Option[A]])(
+      implicit da: Decoder[A],
+      ea: Encoder[A]): ClientEvent[A] = {
+    val mockBuilder = implicitly[MockBuilder[ClientTier]]
+    val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
+    mockBuilder.event(newGraph)
   }
+//  implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
+//    def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] =
+//      AppEvent.toClient(appEv)
+//  }
 }
 
 class AppBehavior[A] private[core] (
@@ -50,24 +54,26 @@ class AppIncBehavior[A, DeltaA] private[core] (
                                                  accumulator)
 
 object AppIncBehavior extends HokkoIncrementalBehaviorObject[AppTier] {
-  implicit class ToClientBehavior[A, DeltaA](
-      appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
-    def toClient(implicit da: Decoder[A],
-                 dda: Decoder[DeltaA],
-                 ea: Encoder[A],
-                 eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
-      val mockBuilder = implicitly[MockBuilder[ClientTier]]
-      val newGraph =
-        ReplicationGraphServer.SenderBehavior(appBeh.rep, appBeh.graph)
 
-      val accumulator =
-        IncrementalBehavior.transformToNormal(appBeh.accumulator)
-      // Create the initial value by evaluating the function with a fresh client
-      val initialFromFreshClient = appBeh.initial(ClientGenerator.fresh)
+  def toClient[A, DeltaA](
+      appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]])(
+      implicit da: Decoder[A],
+      dda: Decoder[DeltaA],
+      ea: Encoder[A],
+      // TODO: This result type is incorrect
+      eda: Encoder[DeltaA]): ClientIncBehavior[A, Either[DeltaA, A]] = {
 
-      mockBuilder
-        .incrementalBehavior(newGraph, accumulator, initialFromFreshClient)
-    }
+    val mockBuilder = implicitly[MockBuilder[ClientTier]]
+    val newGraph =
+      ReplicationGraphServer.SenderBehavior(appBeh.rep, appBeh.graph)
+
+    val accumulator =
+      IncrementalBehavior.transformToNormal(appBeh.accumulator)
+    // Create the initial value by evaluating the function with a fresh client
+    val initialFromFreshClient = appBeh.initial(ClientGenerator.fresh)
+
+    mockBuilder
+      .incrementalBehavior(newGraph, accumulator, initialFromFreshClient)
   }
 }
 
