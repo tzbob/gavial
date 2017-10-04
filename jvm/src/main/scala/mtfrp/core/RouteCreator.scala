@@ -1,144 +1,118 @@
 package mtfrp.core
 
+import akka.Done
+import akka.http.scaladsl.model.ws
+import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream._
 import akka.stream.scaladsl._
-
+import hokko.core.Engine.Subscription
 import hokko.{core => HC}
-import io.circe._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import slogging.LazyLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-
-import akka.http.scaladsl.model.sse._
-import akka.http.scaladsl.marshalling.sse._
+import scala.concurrent.Future
 
 object RouteCreator extends LazyLogging {
-  import EventStreamMarshalling._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-
-  type SourceQueue[A] = SourceQueueWithComplete[A]
-  type SseQueue       = SourceQueue[ServerSentEvent]
-  type SseSource[A]   = Source[ServerSentEvent, A]
-
-  def buildInputRoute[A: Decoder](onPost: (Client, A) => Unit): Route = {
-    path(Names.toServerUpdates / JavaUUID) { cuuid =>
-      pathEnd {
-        post {
-          entity(as[A]) { values =>
-            val cid = Client(cuuid)
-            onPost(cid, values)
-            // TODO: return result in the same HttpRequest (Optimization)!
-            complete("OK")
-          }
+  def buildInputSinkGeneric(
+      propagator: Seq[Message] => Unit): Sink[ws.Message, Future[Done]] = {
+    Sink.foreach[ws.Message] {
+      case ws.TextMessage.Strict(data) =>
+        val messagesEither = io.circe.parser.decode[Seq[Message]](data)
+        messagesEither match {
+          case Left(err)       => logger.error(err.toString)
+          case Right(messages) => propagator(messages)
         }
-      }
+      case x => logger.error(s"Received something other than a TextMessage: $x")
     }
   }
 
-  def buildExitRoute[A](source: SseSource[A])(
-      onConnect: (Client, SseSource[A]) => SseSource[A]): Route = {
-    path(Names.toClientUpdates / JavaUUID) { cuuid =>
-      pathEnd {
-        get {
-          complete {
-            val cid = Client(cuuid)
-            onConnect(cid, source).keepAlive(10.second,
-                                             () => ServerSentEvent.heartbeat)
-          }
-        }
-      }
-    }
-  }
-
-  def queueUpdates[A: Encoder](event: HC.Event[Client => A],
-                               engine: HC.Engine)(
-      client: Client,
-      source: SseSource[SseQueue]): SseSource[SseQueue] = {
-    source.mapMaterializedValue { queue =>
-      val subscription = engine.subscribeForPulses { pulses =>
-        val pulse = pulses(event)
-        offer(client, queue, Names.Sse.update, pulse)
-      }
-
-      queue.watchCompletion().onComplete { _ =>
-        subscription.cancel()
-        println(s"FIXME: client $client disconnected")
-      }
-
-      queue
-    }
-  }
-
-  def queueResets[A: Encoder](beh: HC.CBehavior[Client => A],
-                              engine: HC.Engine)(
-      client: Client,
-      source: SseSource[SseQueue]): SseSource[SseQueue] = {
-    source.mapMaterializedValue { queue =>
-      val currentValues = engine.askCurrentValues()
-      val initials      = currentValues(beh)
-      offer(client, queue, Names.Sse.reset, initials)
-
-      queue
-    }
-  }
-
-  def offer[A: Encoder](client: Client,
-                        queue: SseQueue,
-                        name: String,
-                        pulse: Option[Client => A]): Unit = {
+  def offer(client: Client,
+            queue: SourceQueueWithComplete[ws.Message],
+            pulse: Option[Client => Seq[Message]]): Unit = {
     pulse match {
       case Some(cf) =>
         val messages = cf(client)
-        val sse =
-          ServerSentEvent(messages.asJson.noSpaces, name)
-        val qOffer = queue.offer(sse)
+        val msg      = TextMessage.Strict(messages.asJson.noSpaces)
+        val qOffer   = queue.offer(msg)
         qOffer.failed.foreach { t =>
-          logger.info(s"Could not offer $sse to $queue: $t")
+          logger.info(s"Could not offer $msg to $queue: $t")
         }
       case _ => logger.info(s"No pulse created")
     }
   }
-
 }
 
-class RouteCreator(graph: ReplicationGraph) {
+class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
-  val engine: HC.Engine      = HC.Engine.compile(exitData.event)
 
-  val exitRoute: Route = {
-    val queueSize = Int.MaxValue // FIXME: pick something sensible
-    val src       = Source.queue[ServerSentEvent](queueSize, OverflowStrategy.fail)
+  private[this] val clientChangesSource = HC.Event.source[ClientChange]
+  val clientChanges: AppEvent[ClientChange] =
+    new AppEvent(clientChangesSource, ReplicationGraph.start)
+  val engine: HC.Engine = HC.Engine.compile(exitData.event, clientChangesSource)
 
-    RouteCreator.buildExitRoute(src) { (client, source) =>
-      val srcFromResets =
-        RouteCreator.queueResets(exitData.behavior, engine)(client, source)
-      RouteCreator.queueUpdates(exitData.event, engine)(client, srcFromResets)
-    }
-  }
-
-  private[this] val inputRouter = rgs.inputEventRouter
-
-  val inputRoute: Route = {
-    RouteCreator.buildInputRoute { (client: Client, messages: Seq[Message]) =>
+  def buildInputSink(client: Client): Sink[ws.Message, Future[Done]] =
+    RouteCreator.buildInputSinkGeneric { messages =>
       val pulses = messages.flatMap { msg =>
         inputRouter(client, msg)
       }
       engine.fire(pulses)
     }
+
+  def buildExitSource(client: Client): Source[ws.Message, Unit] = {
+    val queueSize = Int.MaxValue // FIXME: pick something sensible
+    val src       = Source.queue[ws.Message](queueSize, OverflowStrategy.fail)
+    src.watchTermination() { (queue, done) =>
+      notifyClientHasConnected(client)
+
+      queueResets(client, queue)
+      val subscription = queueUpdates(client, queue)
+
+      done.onComplete { _ =>
+        subscription.cancel()
+        notifyClientHasDisconnected(client)
+      }
+    }
   }
 
-  val route: Route = exitRoute ~ inputRoute
+  private[core] def queueUpdates(
+      client: Client,
+      queue: SourceQueueWithComplete[ws.Message]): Subscription = {
+    engine.subscribeForPulses { pulses =>
+      val pulse = pulses(exitData.event)
+      RouteCreator.offer(client, queue, pulse)
+    }
+  }
 
-  //   def notify(change: ClientChange) =
-  //     engine.fire(Seq(clientStatus -> change))
+  private[core] def queueResets(client: Client,
+                                queue: SourceQueueWithComplete[ws.Message]) = {
+    val currentValues = engine.askCurrentValues()
+    val initials      = currentValues(exitData.behavior)
+    RouteCreator.offer(client, queue, initials)
+  }
 
-  //   def notifyClientHasConnected(cid: UUID) = notify(Connected(Client(cid)))
-  //   def notifyClientHasDisconnected(cid: UUID) = notify(Disconnected(Client(cid)))
+  def buildRoute(flow: Client => Flow[ws.Message, ws.Message, Any]): Route =
+    path(Names.ws / JavaUUID) { cuuid =>
+      val cid = Client(cuuid)
+      pathEnd {
+        get {
+          handleWebSocketMessages(flow(cid))
+        }
+      }
+    }
 
+  val route: Route = buildRoute { cid =>
+    Flow.fromSinkAndSource(buildInputSink(cid), buildExitSource(cid))
+  }
+
+  private[this] val inputRouter = rgs.inputEventRouter
+
+  def notify(change: ClientChange) =
+    engine.fire(Seq(clientChangesSource -> change))
+  def notifyClientHasConnected(client: Client)    = notify(Connected(client))
+  def notifyClientHasDisconnected(client: Client) = notify(Disconnected(client))
 }

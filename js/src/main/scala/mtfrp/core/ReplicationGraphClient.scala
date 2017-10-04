@@ -1,6 +1,7 @@
 package mtfrp.core
 
 import hokko.{core => HC}
+import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.ReplicationGraph.Pulse
 import mtfrp.core.ReplicationGraphClient.{ReceiverBehavior, ReceiverEvent}
@@ -45,8 +46,8 @@ object ReplicationGraphClient {
 
   def pulse[A: Decoder](source: HC.EventSource[A],
                         msg: Message): Option[Pulse] = {
-    val decoded = msg.payload.as[A]
-    decoded.toOption.map(source.->)
+    val decoded: Result[A] = msg.payload.as[A]
+    decoded.right.toOption.map(source.->)
   }
 
   case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)

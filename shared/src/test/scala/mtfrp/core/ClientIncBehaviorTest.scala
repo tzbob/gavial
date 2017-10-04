@@ -11,7 +11,7 @@ class ClientIncBehaviorTest extends WordSpec with Matchers {
         accF
       }
 
-      assert(zeroBehavior.toClient.initial === 0)
+      assert(AppIncBehavior.toClient(zeroBehavior).initial === 0)
     }
   }
 

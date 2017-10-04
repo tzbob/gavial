@@ -7,18 +7,14 @@ class SseEventListener extends EventListener {
   def stop(): Unit =
     if (eventSource != null) eventSource.close()
 
-  override def restart(url: String,
-                       handlers: Map[String, (String) => Unit]): Unit = {
+  override def restart(url: String, handler: String => Unit): Unit = {
     stop()
 
     eventSource = new EventSource(url)
-    handlers.foreach {
-      case (msg, handler) =>
-        val listener = { (m: MessageEvent) =>
-          val data = m.data.asInstanceOf[String]
-          handler(data)
-        }
-        eventSource.addEventListener(msg, listener)
+    val listener = { (m: MessageEvent) =>
+      val data = m.data.asInstanceOf[String]
+      handler(data)
     }
+    eventSource.addEventListener("message", listener)
   }
 }

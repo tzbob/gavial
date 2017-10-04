@@ -10,9 +10,12 @@ class EventManager(graph: ReplicationGraph,
     HC.Engine.compile(
       (rgc.exitEvent :: exitEvents.toList) ::: exitBehaviors.toList)
 
-  val receiver = new EventReceiver(rgc, engine, new SseEventListener)
-  val sender   = new EventSender(rgc, engine)
+  def start(url: String): Unit = {
+    val receiver = new EventReceiver(rgc, engine, new WsEventListener(ws => {
+      val sender = new EventSender(rgc, engine, ws)
+      sender.start()
+    }))
 
-  def startSending(url: String): Unit   = sender.start(url)
-  def startReceiving(url: String): Unit = receiver.restart(url)
+    receiver.restart(url)
+  }
 }

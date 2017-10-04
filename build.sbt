@@ -4,7 +4,7 @@ resolvers in ThisBuild += "Sonatype OSS Snapshots" at
 organization in ThisBuild := "be.tzbob"
 scalaVersion in ThisBuild := "2.12.1"
 crossScalaVersions in ThisBuild := Seq("2.11.8", "2.12.1")
-version in ThisBuild := "0.3.0-SNAPSHOT"
+version in ThisBuild := "0.3.1-SNAPSHOT"
 
 scalacOptions in ThisBuild ++= Seq(
   "-encoding",
@@ -22,10 +22,11 @@ scalacOptions in ThisBuild ++= Seq(
 lazy val multitier = crossProject
   .in(file("."))
   .settings(
+    name := "kooi",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats"      % "0.9.0",
       "biz.enef"      %%% "slogging"  % "0.5.3",
-      "be.tzbob"      %%% "hokko"     % "0.4.2-SNAPSHOT",
+      "be.tzbob"      %%% "hokko"     % "0.4.3-SNAPSHOT",
       "com.lihaoyi"   %%% "scalatags" % "0.6.3",
       "org.scalatest" %%% "scalatest" % "3.0.1" % "test"
     ) ++ Seq(
@@ -57,26 +58,3 @@ lazy val multitier = crossProject
 lazy val multitierJS = multitier.js
   .enablePlugins(ScalaJSBundlerPlugin)
 lazy val multitierJVM = multitier.jvm
-
-lazy val examples = crossProject
-  .crossType(CrossType.Pure)
-  .in(file("./examples/"))
-  .jsSettings(
-    enableReloadWorkflow := true,
-    useYarn := true,
-    scalaJSUseMainModuleInitializer := true,
-    scalaJSModuleKind := ModuleKind.CommonJSModule
-  )
-
-lazy val examplesJS = examples.js
-  .dependsOn(multitierJS)
-  .enablePlugins(ScalaJSBundlerPlugin)
-  .enablePlugins(ScalaJSWeb)
-lazy val examplesJVM = examples.jvm
-  .dependsOn(multitierJVM)
-  .settings(
-    scalaJSProjects := Seq(examplesJS),
-    pipelineStages in Assets := Seq(scalaJSPipeline),
-    managedClasspath in Runtime += (packageBin in Assets).value
-  )
-  .enablePlugins(WebScalaJSBundlerPlugin)

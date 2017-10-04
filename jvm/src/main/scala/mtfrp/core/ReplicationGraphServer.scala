@@ -2,6 +2,7 @@ package mtfrp.core
 
 import cats.syntax.functor._
 import hokko.{core => HC}
+import io.circe.Decoder.Result
 import io.circe._
 import mtfrp.core.ReplicationGraph.Pulse
 import mtfrp.core.ReplicationGraphServer.{ReceiverBehavior, ReceiverEvent}
@@ -91,8 +92,8 @@ object ReplicationGraphServer {
     val source: HC.EventSource[(Client, A)] = HC.Event.source
 
     def pulse(c: Client, msg: Message): Option[Pulse] = {
-      val decoded = msg.payload.as[A]
-      decoded.toOption.map { a =>
+      val decoded: Result[A] = msg.payload.as[A]
+      decoded.right.toOption.map { a =>
         source -> (c -> a)
       }
     }

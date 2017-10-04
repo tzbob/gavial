@@ -22,10 +22,6 @@ object AppEvent extends HokkoEventObject {
     val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
     mockBuilder.event(newGraph)
   }
-//  implicit class ToClientEvent[A](appEv: AppEvent[Client => Option[A]]) {
-//    def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] =
-//      AppEvent.toClient(appEv)
-//  }
 }
 
 class AppBehavior[A] private[core] (
@@ -60,8 +56,7 @@ object AppIncBehavior extends HokkoIncrementalBehaviorObject[AppTier] {
       implicit da: Decoder[A],
       dda: Decoder[DeltaA],
       ea: Encoder[A],
-      // TODO: This result type is incorrect
-      eda: Encoder[DeltaA]): ClientIncBehavior[A, Either[DeltaA, A]] = {
+      eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
 
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
     val newGraph =

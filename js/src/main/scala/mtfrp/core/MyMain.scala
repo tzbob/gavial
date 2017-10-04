@@ -35,8 +35,7 @@ trait MyMain
     val manager =
       new EventManager(ui.graph, Seq(ui.rep.toCBehavior), Seq(ui.rep.changes))
 
-    manager.startReceiving(s"/${Names.toClientUpdates}/$clientId")
-    manager.startSending(s"/${Names.toServerUpdates}/$clientId")
+    manager.start(s"/${Names.ws}/$clientId")
 
     applyHtml(manager.engine, ui.rep)
   }

@@ -30,4 +30,7 @@ class SessionBehavior[A] private[session] (
 object SessionBehavior extends BehaviorObject[SessionTier] {
   override def constant[A](x: A): SessionTier#Behavior[A] =
     new SessionBehavior(AppBehavior.constant((_: Client) => x))
+
+  val client: SessionBehavior[Client] =
+    new SessionBehavior(AppBehavior.constant(identity[Client] _))
 }

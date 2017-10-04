@@ -12,19 +12,15 @@ class EventReceiverTest extends WordSpec with Matchers {
     "define update and reset as handlers" in {
       var set = false
       val listener = new EventListener {
-        override def restart(url: String,
-                             handlers: Map[String, (String) => Unit]): Unit = {
-          assert(handlers.isDefinedAt("update"))
-          assert(handlers.isDefinedAt("reset"))
+        def restart(url: String, handler: (String) => Unit): Unit = {
           set = true
         }
       }
 
       val ev1    = AppEvent.empty[Client => Option[Int]].toClient
       val engine = HC.Engine.compile(ev1.rep)
-      new EventReceiver(new ReplicationGraphClient(ev1.graph),
-                        engine,
-                        listener).restart("test")
+      new EventReceiver(new ReplicationGraphClient(ev1.graph), engine, listener)
+        .restart("test")
 
       assert(set)
     }

@@ -79,8 +79,6 @@ class ScalaTagsTest extends WordSpec with Matchers {
 
       val container = dom.document.getElementById("mtfrpcontent")
 
-      println(container.innerHTML)
-
       assert(
         container.innerHTML ==
           "<div>0<div><button>Trigger</button></div></div>")

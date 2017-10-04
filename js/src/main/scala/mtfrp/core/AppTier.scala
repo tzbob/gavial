@@ -56,8 +56,7 @@ object AppIncBehavior
       implicit da: Decoder[A],
       dda: Decoder[DeltaA],
       ea: Encoder[A],
-      // TODO: This result type is incorrect
-      eda: Encoder[DeltaA]): ClientIncBehavior[A, Either[DeltaA, A]] = {
+      eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
 
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
@@ -66,19 +65,6 @@ object AppIncBehavior
 
     val deltas = newGraph.deltas.source
     val resets = newGraph.resets
-
-    // explicit types needed: SI-9772
-
-    val lefts: HEvent[Either[DeltaA, A]] = deltas.map(Left.apply[DeltaA, A])
-    val rights: HEvent[Either[DeltaA, A]] =
-      resets.map(Right.apply[DeltaA, A])
-    val union: HEvent[Either[DeltaA, A]] = lefts.unionWith(rights) {
-      case (_, Right(r)) => Right(r)
-      case (Left(l), _)  => Left(l)
-      case (_, _) =>
-        logger.error("Deltas and Resets mixed up.")
-        sys.error("Deltas and Resets mixed up.")
-    }
 
     // TODO: Improve with an initial value reader/injector
     /*
@@ -91,33 +77,25 @@ object AppIncBehavior
     val transformedAccumulator =
       IncrementalBehavior.transformToNormal(appBeh.accumulator)
 
-    val replicatedBehavior: IBehavior[A, Either[DeltaA, A]] =
-      union.fold(init) { (acc, n) =>
-        n match {
-          case Left(delta)  => transformedAccumulator(acc, delta)
-          case Right(reset) => reset
+    val replicatedBehavior: IBehavior[A, DeltaA] =
+      deltas
+        .fold(init) { (acc, n) =>
+          transformedAccumulator(acc, n)
         }
-      }
+        .resetState(resets)
 
-    val f: (A, Either[DeltaA, A]) => A = (whole, either) => {
-      either match {
-        case Left(deltaA) =>
-          transformedAccumulator(whole, deltaA)
-        case Right(a) =>
-          whole
-      }
-    }
-
-    hokkoBuilder.incrementalBehavior(replicatedBehavior, init, newGraph, f)
+    hokkoBuilder.incrementalBehavior(replicatedBehavior,
+                                     init,
+                                     newGraph,
+                                     transformedAccumulator)
   }
 
   implicit class ReplicableIBehavior[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
-    def toClient(
-        implicit da: Decoder[A],
-        dda: Decoder[DeltaA],
-        ea: Encoder[A],
-        eda: Encoder[DeltaA]): ClientIncBehavior[A, Either[DeltaA, A]] =
+    def toClient(implicit da: Decoder[A],
+                 dda: Decoder[DeltaA],
+                 ea: Encoder[A],
+                 eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] =
       AppIncBehavior.toClient(appBeh)
   }
 

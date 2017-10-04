@@ -15,7 +15,7 @@ class EventReceiver(rgc: ReplicationGraphClient,
   def decodeAsPulses(
       messages: String): Either[Error, List[ReplicationGraph.Pulse]] = {
     val messageXor = decode[List[Message]](messages)
-    messageXor.map { messages =>
+    messageXor.right.map { messages =>
       val maybePulses = messages.map { message =>
         val maybePulse = pulseMakers(message)
         if (maybePulse.isEmpty)
@@ -36,10 +36,6 @@ class EventReceiver(rgc: ReplicationGraphClient,
       }
     }
 
-    listener.restart(url,
-                     Map(
-                       "update" -> decodeAndFire,
-                       "reset"  -> decodeAndFire
-                     ))
+    listener.restart(url, decodeAndFire)
   }
 }
