@@ -1,5 +1,6 @@
 package mtfrp.core.impl
 
+import cats.data.Ior
 import hokko.core
 import hokko.core.IBehavior
 import mtfrp.core._
@@ -28,12 +29,24 @@ class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
       accumulator
     )
 
+  def map2[B, DeltaB, C, DeltaC](b: T#IncrementalBehavior[B, DeltaB])(
+      valueFun: (A, B) => C)(
+      deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
+      foldFun: (C, DeltaC) => C): T#IncrementalBehavior[C, DeltaC] =
+    builder.incrementalBehavior(
+      rep.incMap2(b.rep)(valueFun)(deltaFun)(foldFun),
+      valueFun(initial, b.initial),
+      graph + b.graph,
+      foldFun
+    )
+
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(IBehavior.syntaxSnapshottable(rep).snapshotWith(ev.rep)(f),
                   graph + ev.graph)
 
   def toDiscreteBehavior: T#DiscreteBehavior[A] =
     builder.discreteBehavior(rep.toDBehavior, initial, graph)
+
 }
 
 abstract class HokkoIncrementalBehaviorObject[

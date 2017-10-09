@@ -50,10 +50,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
 
-  private[this] val clientChangesSource = HC.Event.source[ClientChange]
-  val clientChanges: AppEvent[ClientChange] =
-    new AppEvent(clientChangesSource, ReplicationGraph.start)
-  val engine: HC.Engine = HC.Engine.compile(exitData.event, clientChangesSource)
+  val engine: HC.Engine = HC.Engine.compile(exitData.event)
 
   def buildInputSink(client: Client): Sink[ws.Message, Future[Done]] =
     RouteCreator.buildInputSinkGeneric { messages =>
@@ -112,7 +109,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
   private[this] val inputRouter = rgs.inputEventRouter
 
   def notify(change: ClientChange) =
-    engine.fire(Seq(clientChangesSource -> change))
+    engine.fire(Seq(AppEvent.clientChangesSource -> change))
   def notifyClientHasConnected(client: Client)    = notify(Connected(client))
   def notifyClientHasDisconnected(client: Client) = notify(Disconnected(client))
 }

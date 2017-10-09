@@ -1,8 +1,6 @@
-package mtfrp.core.session
+package mtfrp.core
 
-import mtfrp.core._
-
-class SessionDiscreteBehavior[A] private[session] (
+class SessionDiscreteBehavior[A] private[core] (
     val underlying: AppDiscreteBehavior[Client => A]
 ) extends DiscreteBehavior[SessionTier, A] {
   override def changes(): SessionEvent[A] = {
@@ -40,4 +38,9 @@ class SessionDiscreteBehavior[A] private[session] (
 object SessionDiscreteBehavior extends DiscreteBehaviorObject[SessionTier] {
   override def constant[A](x: A): SessionDiscreteBehavior[A] =
     new SessionDiscreteBehavior(AppDiscreteBehavior.constant((_: Client) => x))
+
+  def toApp[A](sessionBehavior: SessionDiscreteBehavior[A])
+    : AppDiscreteBehavior[Map[Client, A]] =
+    AppDiscreteBehavior.clients.map2(sessionBehavior.underlying)(
+      SessionBehavior.clientMerger)
 }

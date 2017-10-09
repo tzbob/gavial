@@ -12,8 +12,8 @@ import mtfrp.core.mock._
 class AppEvent[A] private[core] (graph: ReplicationGraph)
     extends MockEvent[AppTier, A](graph)
 
-object AppEvent extends MockEventObject {
-  def toClient[A](appEv: AppEvent[Client => Option[A]])(
+object AppEvent extends MockEventObject with AppEventObject {
+  private[core] def toClient[A](appEv: AppEvent[Client => Option[A]])(
       implicit da: Decoder[A],
       ea: Encoder[A]): ClientEvent[A] = {
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
@@ -21,23 +21,23 @@ object AppEvent extends MockEventObject {
     hokkoBuilder.event(newGraph.source, newGraph)
   }
 
-  implicit class ReplicableEvent[A](appEv: AppEvent[Client => Option[A]]) {
-    def toClient(implicit da: Decoder[A], ea: Encoder[A]): ClientEvent[A] =
-      AppEvent.toClient(appEv)
-  }
+  val clientChanges: AppEvent[ClientChange] = new AppEvent(
+    ReplicationGraph.start)
 }
 
 class AppBehavior[A] private[core] (graph: ReplicationGraph)
     extends MockBehavior[AppTier, A](graph)
 
-object AppBehavior extends MockBehaviorObject[AppTier]
+object AppBehavior extends MockBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDiscreteBehavior[A] private[core] (
     graph: ReplicationGraph,
     initial: A
 ) extends MockDiscreteBehavior[AppTier, A](graph, initial)
 
-object AppDiscreteBehavior extends MockDiscreteBehaviorObject[AppTier]
+object AppDiscreteBehavior
+    extends MockDiscreteBehaviorObject[AppTier]
+    with AppDiscreteBehaviorObject
 
 class AppIncBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
@@ -49,6 +49,7 @@ import slogging.LazyLogging
 
 object AppIncBehavior
     extends MockIncrementalBehaviorObject[AppTier]
+    with AppIncBehaviorObject
     with LazyLogging {
 
   def toClient[A, DeltaA](
@@ -89,16 +90,6 @@ object AppIncBehavior
                                      newGraph,
                                      transformedAccumulator)
   }
-
-  implicit class ReplicableIBehavior[A, DeltaA](
-      appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]]) {
-    def toClient(implicit da: Decoder[A],
-                 dda: Decoder[DeltaA],
-                 ea: Encoder[A],
-                 eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] =
-      AppIncBehavior.toClient(appBeh)
-  }
-
 }
 
 final class AppTier extends MockTier with AppTierLike

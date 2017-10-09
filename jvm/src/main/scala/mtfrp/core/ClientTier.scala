@@ -5,6 +5,8 @@ import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
 
+import scala.collection.immutable
+
 // Define all Client types
 // Create all Client constructors
 
@@ -19,11 +21,20 @@ object ClientEvent extends MockEventObject[ClientTier] {
   def source[A]: ClientEventSource[A] =
     new ClientEventSource(ReplicationGraph.start)
 
-  def toApp[A: Decoder: Encoder](clientEv: ClientEvent[A]) = {
+  def toApp[A: Decoder: Encoder](
+      clientEv: ClientEvent[A]): AppEvent[(Client, A)] = {
     val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
     val receiverGraph = ReplicationGraphServer.ReceiverEvent(clientEv.graph)
     hokkoBuilder.event(receiverGraph.source, receiverGraph)
   }
+
+  def toSession[A: Decoder: Encoder](
+      clientEv: ClientEvent[A]): SessionEvent[A] =
+    new SessionEvent(toApp(clientEv).map {
+      case (c, a) =>
+        (c0: Client) =>
+          if (c == c0) Some(a) else None
+    })
 }
 
 class ClientBehavior[A] private[core] (graph: ReplicationGraph)
@@ -53,7 +64,8 @@ class ClientIncBehavior[A, DeltaA] private[core] (
 
 object ClientIncBehavior extends MockIncrementalBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
-      clientBeh: ClientIncBehavior[A, DeltaA]) = {
+      clientBeh: ClientIncBehavior[A, DeltaA])
+    : AppIncBehavior[immutable.Map[Client, A], (Client, DeltaA)] = {
     val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
     val newGraph =
@@ -70,6 +82,27 @@ object ClientIncBehavior extends MockIncrementalBehaviorObject {
 
     hokkoBuilder
       .incrementalBehavior(behavior, defaultValue, newGraph, transformed)
+  }
+
+  def toSession[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
+      clientBeh: ClientIncBehavior[A, DeltaA])
+    : SessionIncBehavior[A, DeltaA] = {
+    val ib: AppIncBehavior[Client => A, Client => Option[DeltaA]] =
+      toApp(clientBeh).map { m =>
+        m.apply _
+      } {
+        case (c, deltaA) =>
+          (c0: Client) =>
+            if (c0 == c) Some(deltaA) else None
+      } { (cfA, cfOptDA) => (c: Client) =>
+        val a = cfA(c)
+        cfOptDA(c) match {
+          case Some(da) => clientBeh.accumulator(a, da)
+          case None     => a
+        }
+      }
+
+    new SessionIncBehavior(ib)
   }
 }
 

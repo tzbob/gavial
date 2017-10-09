@@ -24,11 +24,12 @@ class ScalaTagsTest extends WordSpec with Matchers {
                                   ui.rep.toCBehavior,
                                   ui.rep.changes)
       main.applyHtml(engine, ui.rep, false)
+      engine
     }
 
-    "should push events from HTML" in {
+    "push events from HTML" in {
       val exampleApp = new MyMain {
-        import html.all._
+        import UI.html.all._
 
         def mkButton(txt: String, src: ClientEventSource[Int], v: Int) =
           button(UI.listen(onclick, src)(_ => v), txt)
@@ -55,9 +56,60 @@ class ScalaTagsTest extends WordSpec with Matchers {
       assert(container.innerHTML == "<div>1<button>+</button></div>")
     }
 
-    "should read properties from HTML" in {
+    "push multiple events from counter" in {
+      class Counter extends MyMain {
+        import UI.html.all._
+
+        val inc = 1
+        val dec = -1
+
+        private[this] val incInput = ClientEvent.source[Int]
+        private[this] val decInput = ClientEvent.source[Int]
+
+        private def mkButton(src: ClientEventSource[Int], txt: String, v: Int) =
+          button(UI.listen(onclick, src)(_ => v), txt)
+
+        val incButton = mkButton(incInput, "Increment", inc)
+        val decButton = mkButton(decInput, "Decrement", dec)
+
+        val state =
+          incInput.unionWith(decInput)(_ + _).fold(0)(_ + _).toDiscreteBehavior
+
+        val ui: ClientDiscreteBehavior[UI.HTML] = state.map(
+          v =>
+            div(
+              div("Current count: ", span(v)),
+              div(incButton, decButton)
+          ))
+      }
+
+      val exampleApp = new Counter
+
+      val engine = setupTestBody(exampleApp)
+
+      val container = dom.document.getElementById("mtfrpcontent")
+
+
+      def currentValue =
+        engine.askCurrentValues()(exampleApp.state.rep.toCBehavior).get
+
+      val btns = dom.document.body.querySelectorAll("button")
+      val inc = btns(0).asInstanceOf[HTMLButtonElement]
+
+      assert(currentValue == 0)
+
+      inc.click()
+      inc.click()
+      assert(currentValue == 2)
+
+      val dec = btns(1).asInstanceOf[HTMLButtonElement]
+      dec.click()
+      assert(currentValue == 1)
+    }
+
+    "read properties from HTML" in {
       val exampleApp = new MyMain {
-        import html.all._
+        import UI.html.all._
 
         val event = ClientEvent.source[Unit]
         val btn   = button(UI.listen(onclick, event)(_ => ()), "Trigger")

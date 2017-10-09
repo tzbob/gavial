@@ -1,5 +1,6 @@
 package mtfrp.core.mock
 
+import cats.data.Ior
 import mtfrp.core._
 import mtfrp.core.impl.HokkoBuilder
 
@@ -20,11 +21,18 @@ class MockIncBehavior[T <: MockTier: MockBuilder, A, DeltaA](
       accumulator: (B, DeltaB) => B): T#IncrementalBehavior[B, DeltaB] =
     builder.incrementalBehavior(graph, accumulator, fa(initial))
 
+  def map2[B, DeltaB, C, DeltaC](b: T#IncrementalBehavior[B, DeltaB])(
+      valueFun: (A, B) => C)(
+      deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
+      foldFun: (C, DeltaC) => C): T#IncrementalBehavior[C, DeltaC] =
+    builder.incrementalBehavior(graph, foldFun, valueFun(initial, b.initial))
+
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(graph + ev.graph)
 
   def toDiscreteBehavior: T#DiscreteBehavior[A] =
     builder.discreteBehavior(graph, initial)
+
 }
 
 abstract class MockIncrementalBehaviorObject[

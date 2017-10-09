@@ -17,7 +17,7 @@ class EventReceiverTest extends WordSpec with Matchers {
         }
       }
 
-      val ev1    = AppEvent.empty[Client => Option[Int]].toClient
+      val ev1    = AppEvent.toClient(AppEvent.empty[Client => Option[Int]])
       val engine = HC.Engine.compile(ev1.rep)
       new EventReceiver(new ReplicationGraphClient(ev1.graph), engine, listener)
         .restart("test")
@@ -28,8 +28,8 @@ class EventReceiverTest extends WordSpec with Matchers {
     "decode messages as pulses" in {
       HasToken.reset()
 
-      val ev1 = AppEvent.empty[Client => Option[Int]].toClient
-      val ev2 = AppEvent.empty[Client => Option[Int]].toClient
+      val ev1 = AppEvent.toClient(AppEvent.empty[Client => Option[Int]])
+      val ev2 = AppEvent.toClient(AppEvent.empty[Client => Option[Int]])
 
       val exit = ev1.unionLeft(ev2)
 

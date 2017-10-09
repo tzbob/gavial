@@ -7,36 +7,20 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import hokko.core.Engine
 
 import scala.concurrent.Future
 import scala.io.StdIn
 import scala.language.dynamics
-import scalatags.generic.{Attr, AttrPair}
-import scalatags.text.Builder
 
-trait MyMain extends FrpMain[Builder, String, String] {
-  val html = scalatags.Text
-
-  object UI {
-    import html.all._
-
-    trait Dummy extends Dynamic {
-      def selectDynamic(methodName: String): Dummy               = ???
-      def applyDynamic(methodName: String)(argument: Any): Dummy = ???
-    }
-
-    def read[Result](tag: BaseTagType)(sink: Any,
-                                       selector: Dummy => Result): HTML = tag
-
-    def listen[Result](a: Attr, src: ClientEventSource[Result])(
-        f: Any => Result)
-      : scalatags.generic.AttrPair[Builder, hokko.core.EventSource[Result]] =
-      AttrPair(a, null, new AttrValue[hokko.core.EventSource[Result]] {
-        def apply(t: Builder, a: Attr, v: hokko.core.EventSource[Result]) = t
-      })
-  }
+trait MyMain extends FrpMain {
 
   def main(args: Array[String]): Unit = {
+    setup
+    ()
+  }
+
+  private[core] lazy val setup: Engine = {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
 
@@ -49,6 +33,7 @@ trait MyMain extends FrpMain[Builder, String, String] {
     val bindingFuture = Http().bindAndHandle(totalRoute, "localhost", 8080)
 
     startServer(bindingFuture)
+    routeCreator.engine
   }
 
   def startServer(bindingFuture: Future[ServerBinding])(
@@ -56,8 +41,7 @@ trait MyMain extends FrpMain[Builder, String, String] {
     // needed for the future flatMap/onComplete in the end
     implicit val executionContext = system.dispatcher
 
-    println(
-      s"Server online at http://localhost:8080/\nPress RETURN to stop...")
+    println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
     bindingFuture
       .flatMap(_.unbind()) // trigger unbinding from the port
@@ -68,11 +52,11 @@ trait MyMain extends FrpMain[Builder, String, String] {
     getFromResourceDirectory("")
   }
 
-  import html.all._
-  def createIndex(content: HTML): Route = {
+  import UI.html.all._
+  def createIndex(content: UI.HTML): Route = {
     path("") {
       get {
-        val rawHtml = html.tags.html(
+        val rawHtml = UI.html.tags.html(
           head(
             script(
               src := javascriptResults

@@ -14,14 +14,18 @@ class AppEvent[A] private[core] (
     graph: ReplicationGraph
 ) extends HokkoEvent[AppTier, A](rep, graph)
 
-object AppEvent extends HokkoEventObject {
-  def toClient[A](appEv: AppEvent[Client => Option[A]])(
+object AppEvent extends HokkoEventObject with AppEventObject {
+  private[core] def toClient[A](appEv: AppEvent[Client => Option[A]])(
       implicit da: Decoder[A],
       ea: Encoder[A]): ClientEvent[A] = {
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
     val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
     mockBuilder.event(newGraph)
   }
+
+  private[core] val clientChangesSource = core.Event.source[ClientChange]
+  val clientChanges: AppEvent[ClientChange] =
+    new AppEvent(clientChangesSource, ReplicationGraph.start)
 }
 
 class AppBehavior[A] private[core] (
@@ -29,7 +33,7 @@ class AppBehavior[A] private[core] (
     graph: ReplicationGraph
 ) extends HokkoBehavior[AppTier, A](rep, graph)
 
-object AppBehavior extends HokkoBehaviorObject[AppTier]
+object AppBehavior extends HokkoBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDiscreteBehavior[A] private[core] (
     rep: core.DBehavior[A],
@@ -37,7 +41,9 @@ class AppDiscreteBehavior[A] private[core] (
     graph: ReplicationGraph
 ) extends HokkoDiscreteBehavior[AppTier, A](rep, initial, graph)
 
-object AppDiscreteBehavior extends HokkoDiscreteBehaviorObject[AppTier]
+object AppDiscreteBehavior
+    extends HokkoDiscreteBehaviorObject[AppTier]
+    with AppDiscreteBehaviorObject
 
 class AppIncBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
@@ -49,7 +55,9 @@ class AppIncBehavior[A, DeltaA] private[core] (
                                                  graph,
                                                  accumulator)
 
-object AppIncBehavior extends HokkoIncrementalBehaviorObject[AppTier] {
+object AppIncBehavior
+    extends HokkoIncrementalBehaviorObject[AppTier]
+    with AppIncBehaviorObject {
 
   def toClient[A, DeltaA](
       appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]])(

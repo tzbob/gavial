@@ -1,6 +1,7 @@
 package mtfrp
 package core
 
+import cats.data.Ior
 import hokko.syntax.SnapshottableSyntax
 import hokko.core.tc
 
@@ -11,6 +12,11 @@ trait IncrementalBehavior[T <: Tier, A, DeltaA] {
   def deltas: T#Event[DeltaA]
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
       accumulator: (B, DeltaB) => B): T#IncrementalBehavior[B, DeltaB]
+  def map2[B, DeltaB, C, DeltaC](b: T#IncrementalBehavior[B, DeltaB])(
+      valueFun: (A, B) => C)(
+      deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
+      foldFun: (C, DeltaC) => C
+  ): T#IncrementalBehavior[C, DeltaC]
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
   def toDiscreteBehavior: T#DiscreteBehavior[A]

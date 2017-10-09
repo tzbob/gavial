@@ -1,9 +1,7 @@
-package mtfrp.core.session
+package mtfrp.core
 
-import mtfrp.core._
-
-class SessionBehavior[A] private[session] (
-    val underlying: AppBehavior[Client => A]
+class SessionBehavior[A] private[core] (
+    private[core] val underlying: AppBehavior[Client => A]
 ) extends Behavior[SessionTier, A] {
   override def reverseApply[B](
       fb: SessionTier#Behavior[A => B]): SessionTier#Behavior[B] = {
@@ -30,6 +28,16 @@ class SessionBehavior[A] private[session] (
 object SessionBehavior extends BehaviorObject[SessionTier] {
   override def constant[A](x: A): SessionTier#Behavior[A] =
     new SessionBehavior(AppBehavior.constant((_: Client) => x))
+
+  private[core] def clientMerger[A](clients: Set[Client], cfA: Client => A) =
+    clients.map { c =>
+      c -> cfA(c)
+    }.toMap
+
+  def toApp[A](
+      sessionBehavior: SessionBehavior[A]): AppBehavior[Map[Client, A]] = {
+    AppBehavior.clients.map2(sessionBehavior.underlying)(clientMerger)
+  }
 
   val client: SessionBehavior[Client] =
     new SessionBehavior(AppBehavior.constant(identity[Client] _))

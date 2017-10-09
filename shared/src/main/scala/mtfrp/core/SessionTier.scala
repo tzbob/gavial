@@ -1,6 +1,4 @@
-package mtfrp.core.session
-
-import mtfrp.core.{Tier, ClientTier}
+package mtfrp.core
 
 trait SessionTier extends Tier {
   type T = SessionTier
@@ -8,7 +6,7 @@ trait SessionTier extends Tier {
   type Event[A]                       = SessionEvent[A]
   type Behavior[A]                    = SessionBehavior[A]
   type DiscreteBehavior[A]            = SessionDiscreteBehavior[A]
-  type IncrementalBehavior[A, DeltaA] = SessionIncrementalBehavior[A, DeltaA]
+  type IncrementalBehavior[A, DeltaA] = SessionIncBehavior[A, DeltaA]
 
   type Replicated = ClientTier
 }

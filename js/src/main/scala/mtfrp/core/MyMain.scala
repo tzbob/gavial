@@ -10,26 +10,14 @@ import scala.language.reflectiveCalls
 import scala.scalajs.js
 import scalatags.hokko.{Builder, DomPatcher}
 
-trait MyMain
-    extends js.JSApp
-    with FrpMain[Builder, Engine => VNode, Engine => VNode]
-    with LazyLogging {
-  val html = scalatags.Hokko
-
-  object UI {
-    import html.all._
-
-    def read[Result](tag: BaseTagType)(sink: ClientBehaviorSink[Result],
-                                       selector: dom.Element => Result): HTML =
-      new TagWithSink(tag).read(sink.rep, selector)
-
-    def listen[Result](a: Attr, src: ClientEventSource[Result])(
-        f: dom.Event => Result)
-      : scalatags.generic.AttrPair[Builder, hokko.core.EventSource[Result]] =
-      a.listen(src.rep, f)
-  }
+trait MyMain extends js.JSApp with FrpMain with LazyLogging {
 
   def main(): Unit = {
+    setup
+    ()
+  }
+
+  private[core] lazy val setup: Engine = {
     val clientId = ClientGenerator.static.id
 
     val manager =
@@ -38,12 +26,13 @@ trait MyMain
     manager.start(s"/${Names.ws}/$clientId")
 
     applyHtml(manager.engine, ui.rep)
+    manager.engine
   }
 
   def applyHtml(engine: Engine,
-                mainUi: HC.DBehavior[HTML],
+                mainUi: HC.DBehavior[UI.HTML],
                 onLoading: Boolean = true): Unit = {
-    val initialVDom: Option[HTML] =
+    val initialVDom: Option[UI.HTML] =
       engine.askCurrentValues()(mainUi.toCBehavior)
 
     val domPatcherOpt =

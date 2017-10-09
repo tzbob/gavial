@@ -9,7 +9,7 @@ class ReplicationGraphClientTest extends WordSpec {
 
   def makeAppEvent: (HC.EventSource[Int], AppEvent[(Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> ClientEvent(src).toApp
+    src -> ClientEvent.toApp(ClientEvent(src))
   }
 
   def makeAppBehavior
@@ -20,13 +20,14 @@ class ReplicationGraphClientTest extends WordSpec {
 
   def makeCountingBehavior(beh1src: ClientEvent[Int])
     : AppIncBehavior[Map[Client, Int], (Client, Int)] = {
-    beh1src.fold(0)(_ + _).toApp
+    ClientIncBehavior.toApp(beh1src.fold(0)(_ + _))
   }
 
   "ReplicationGraphClientTest" should {
 
     def makeClientEvent: ClientEvent[Int] =
-      new AppEvent[Client => Option[Int]](ReplicationGraph.start).toClient
+      AppEvent.toClient(
+        new AppEvent[Client => Option[Int]](ReplicationGraph.start))
 
     def makeClientBehavior: ClientIncBehavior[Int, Int] =
       AppIncBehavior.toClient(

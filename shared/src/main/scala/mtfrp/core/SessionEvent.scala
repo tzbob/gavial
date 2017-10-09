@@ -1,11 +1,10 @@
-package mtfrp.core.session
+package mtfrp.core
 
 import hokko.{core => HC}
 import io.circe._
-import mtfrp.core._
 
-class SessionEvent[A] private[session] (
-    val underlying: AppEvent[Client => Option[A]]
+class SessionEvent[A] private[core] (
+    private[core] val underlying: AppEvent[Client => Option[A]]
 ) extends Event[SessionTier, A] {
   private[core] val graph: ReplicationGraph = underlying.graph
 
@@ -33,7 +32,7 @@ class SessionEvent[A] private[session] (
         }
     }
 
-    new SessionIncrementalBehavior(newRep)
+    new SessionIncBehavior(newRep)
   }
 
   def unionWith(b: SessionTier#Event[A])(
@@ -59,6 +58,17 @@ object SessionEvent extends EventObject[SessionTier] {
       Some(a)
     }
     new SessionEvent(AppEvent(hcEv))
+  }
+
+  def toApp[A](sessionEvent: SessionEvent[A]): AppEvent[Map[Client, A]] = {
+    val currentClients = AppDiscreteBehavior.clients
+
+    currentClients.snapshotWith(sessionEvent.underlying) { (clients, cfA) =>
+      val clientPulses = clients.map { c =>
+        c -> cfA(c)
+      }
+      clientPulses.collect { case (client, Some(a)) => (client, a) }.toMap
+    }
   }
 
   def toClient[A](sessionEvent: SessionEvent[A])(
