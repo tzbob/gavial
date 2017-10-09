@@ -1,7 +1,7 @@
 package mtfrp
 package core
 
-import hokko.core.{IBehavior, Event => HEvent}
+import hokko.core
 import io.circe._
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
@@ -30,34 +30,32 @@ class AppBehavior[A] private[core] (graph: ReplicationGraph)
 
 object AppBehavior extends MockBehaviorObject[AppTier] with AppBehaviorObject
 
-class AppDiscreteBehavior[A] private[core] (
+class AppDBehavior[A] private[core] (
     graph: ReplicationGraph,
     initial: A
-) extends MockDiscreteBehavior[AppTier, A](graph, initial)
+) extends MockDBehavior[AppTier, A](graph, initial)
 
-object AppDiscreteBehavior
-    extends MockDiscreteBehaviorObject[AppTier]
-    with AppDiscreteBehaviorObject
+object AppDBehavior extends MockDBehaviorObject[AppTier] with AppDBehaviorObject
 
-class AppIncBehavior[A, DeltaA] private[core] (
+class AppIBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A,
     initial: A
-) extends MockIncBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
+) extends MockIBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
 
 import slogging.LazyLogging
 
-object AppIncBehavior
-    extends MockIncrementalBehaviorObject[AppTier]
-    with AppIncBehaviorObject
+object AppIBehavior
+    extends MockIBehaviorObject[AppTier]
+    with AppIBehaviorObject
     with LazyLogging {
 
   def toClient[A, DeltaA](
-      appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]])(
+      appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]])(
       implicit da: Decoder[A],
       dda: Decoder[DeltaA],
       ea: Encoder[A],
-      eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
+      eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
 
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
@@ -76,19 +74,19 @@ object AppIncBehavior
     val init: A = appBeh.initial(ClientGenerator.static)
 
     val transformedAccumulator =
-      IncrementalBehavior.transformToNormal(appBeh.accumulator)
+      IBehavior.transformToNormal(appBeh.accumulator)
 
-    val replicatedBehavior: IBehavior[A, DeltaA] =
+    val replicatedBehavior: core.IBehavior[A, DeltaA] =
       deltas
         .fold(init) { (acc, n) =>
           transformedAccumulator(acc, n)
         }
         .resetState(resets)
 
-    hokkoBuilder.incrementalBehavior(replicatedBehavior,
-                                     init,
-                                     newGraph,
-                                     transformedAccumulator)
+    hokkoBuilder.IBehavior(replicatedBehavior,
+                           init,
+                           newGraph,
+                           transformedAccumulator)
   }
 }
 

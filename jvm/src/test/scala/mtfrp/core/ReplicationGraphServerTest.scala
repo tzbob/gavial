@@ -13,14 +13,14 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
   }
 
   def makeClientBehavior
-    : (HC.EventSource[Client => Option[Int]], ClientIncBehavior[Int, Int]) = {
+    : (HC.EventSource[Client => Option[Int]], ClientIBehavior[Int, Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
     src -> makeCountingBehavior(AppEvent(src))
   }
 
   def makeCountingBehavior(
-      beh1src: AppEvent[Client => Option[Int]]): ClientIncBehavior[Int, Int] = {
-    AppIncBehavior.toClient(
+      beh1src: AppEvent[Client => Option[Int]]): ClientIBehavior[Int, Int] = {
+    AppIBehavior.toClient(
       beh1src
         .fold((c: Client) => 0) { (accF, newF) => (c: Client) =>
           accF(c) + newF(c).getOrElse(0)
@@ -36,7 +36,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val (ev1src, ev1)      = makeClientEvent
         val (beh1srcsrc, beh1) = makeClientBehavior
 
-        val combined  = beh1.toDiscreteBehavior.sampledBy(ev1)
+        val combined  = beh1.toDBehavior.sampledBy(ev1)
         val exitEvent = new ReplicationGraphServer(combined.graph).exitEvent
 
         val engine = HC.Engine.compile(exitEvent)
@@ -89,10 +89,10 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
       ClientEvent.toApp(ev)
     }
 
-    def makeAppBehavior: AppIncBehavior[Map[Client, Int], (Client, Int)] = {
+    def makeAppBehavior: AppIBehavior[Map[Client, Int], (Client, Int)] = {
       val ev =
-        new ClientIncBehavior[Int, Int](ReplicationGraph.start, _ + _, 0)
-      ClientIncBehavior.toApp(ev)
+        new ClientIBehavior[Int, Int](ReplicationGraph.start, _ + _, 0)
+      ClientIBehavior.toApp(ev)
     }
 
     "build an input event router that deals with events, behavior deltas and behavior resets" in {

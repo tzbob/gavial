@@ -35,48 +35,48 @@ class AppBehavior[A] private[core] (
 
 object AppBehavior extends HokkoBehaviorObject[AppTier] with AppBehaviorObject
 
-class AppDiscreteBehavior[A] private[core] (
+class AppDBehavior[A] private[core](
     rep: core.DBehavior[A],
     initial: A,
     graph: ReplicationGraph
-) extends HokkoDiscreteBehavior[AppTier, A](rep, initial, graph)
+) extends HokkoDBehavior[AppTier, A](rep, initial, graph)
 
-object AppDiscreteBehavior
-    extends HokkoDiscreteBehaviorObject[AppTier]
-    with AppDiscreteBehaviorObject
+object AppDBehavior
+    extends HokkoDBehaviorObject[AppTier]
+    with AppDBehaviorObject
 
-class AppIncBehavior[A, DeltaA] private[core] (
+class AppIBehavior[A, DeltaA] private[core](
     rep: core.IBehavior[A, DeltaA],
     initial: A,
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A
-) extends HokkoIncBehavior[AppTier, A, DeltaA](rep,
+) extends HokkoIBehavior[AppTier, A, DeltaA](rep,
                                                  initial,
                                                  graph,
                                                  accumulator)
 
-object AppIncBehavior
-    extends HokkoIncrementalBehaviorObject[AppTier]
-    with AppIncBehaviorObject {
+object AppIBehavior
+    extends HokkoIBehaviorObject[AppTier]
+    with AppIBehaviorObject {
 
   def toClient[A, DeltaA](
-      appBeh: AppIncBehavior[Client => A, Client => Option[DeltaA]])(
+      appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]])(
       implicit da: Decoder[A],
       dda: Decoder[DeltaA],
       ea: Encoder[A],
-      eda: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] = {
+      eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
 
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
     val newGraph =
       ReplicationGraphServer.SenderBehavior(appBeh.rep, appBeh.graph)
 
     val accumulator =
-      IncrementalBehavior.transformToNormal(appBeh.accumulator)
+      IBehavior.transformToNormal(appBeh.accumulator)
     // Create the initial value by evaluating the function with a fresh client
     val initialFromFreshClient = appBeh.initial(ClientGenerator.fresh)
 
     mockBuilder
-      .incrementalBehavior(newGraph, accumulator, initialFromFreshClient)
+      .IBehavior(newGraph, accumulator, initialFromFreshClient)
   }
 }
 

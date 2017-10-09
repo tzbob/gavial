@@ -11,8 +11,8 @@ class MockEvent[T <: MockTier: MockBuilder, A](
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
-  def fold[B](initial: B)(f: (B, A) => B): T#IncrementalBehavior[B, A] =
-    mockBuilder.incrementalBehavior(graph, f, initial)
+  def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A] =
+    mockBuilder.IBehavior(graph, f, initial)
 
   def unionWith(b: T#Event[A])( f3: (A, A) => A): T#Event[A] =
     mockBuilder.event(graph + b.graph)

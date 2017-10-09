@@ -8,7 +8,7 @@ import hokko.core.tc
 trait Event[T <: Tier, A] {
   private[core] val graph: ReplicationGraph
 
-  def fold[B](initial: B)(f: (B, A) => B): T#IncrementalBehavior[B, A]
+  def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A]
 
   def unionWith(b: T#Event[A])(f: (A, A) => A): T#Event[A]
 
@@ -16,16 +16,16 @@ trait Event[T <: Tier, A] {
 }
 
 trait EventObject[SubT <: Tier { type T = SubT }]
-    extends hokko.syntax.EventSyntax[SubT#Event, SubT#IncrementalBehavior]
+    extends hokko.syntax.EventSyntax[SubT#Event, SubT#IBehavior]
     with FunctorSyntax {
   def empty[A]: SubT#Event[A]
   private[core] def apply[A](ev: HC.Event[A]): SubT#Event[A]
 
   implicit val mtfrpEventInstances
-    : tc.Event[SubT#Event, SubT#IncrementalBehavior] =
-    new tc.Event[SubT#Event, SubT#IncrementalBehavior] {
+    : tc.Event[SubT#Event, SubT#IBehavior] =
+    new tc.Event[SubT#Event, SubT#IBehavior] {
       override def fold[A, DeltaA](ev: SubT#Event[DeltaA], initial: A)(
-          f: (A, DeltaA) => A): SubT#IncrementalBehavior[A, DeltaA] =
+          f: (A, DeltaA) => A): SubT#IBehavior[A, DeltaA] =
         ev.fold(initial)(f)
 
       override def unionWith[A](a: SubT#Event[A])(b: SubT#Event[A])(

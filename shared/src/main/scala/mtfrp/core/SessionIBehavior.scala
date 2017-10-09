@@ -5,12 +5,12 @@ import io.circe.{Decoder, Encoder}
 
 import scala.collection.immutable.Map
 
-class SessionIncBehavior[A, DeltaA] private[core] (
-    private[core] val underlying: AppIncBehavior[Client => A,
+class SessionIBehavior[A, DeltaA] private[core](
+    private[core] val underlying: AppIBehavior[Client => A,
                                                  Client => Option[DeltaA]]
-) extends IncrementalBehavior[SessionTier, A, DeltaA] {
+) extends IBehavior[SessionTier, A, DeltaA] {
   private[core] def accumulator: (A, DeltaA) => A =
-    IncrementalBehavior.transformToNormal(underlying.accumulator)
+    IBehavior.transformToNormal(underlying.accumulator)
 
   def changes: SessionTier#Event[A] = {
     val optChanges = underlying.changes.map { cf => c: Client =>
@@ -23,9 +23,9 @@ class SessionIncBehavior[A, DeltaA] private[core] (
 
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
       accumulator: (B, DeltaB) => B)
-    : SessionTier#IncrementalBehavior[B, DeltaB] = {
+    : SessionTier#IBehavior[B, DeltaB] = {
 
-    val newUnderlying: AppIncBehavior[Client => B, Client => Option[DeltaB]] =
+    val newUnderlying: AppIBehavior[Client => B, Client => Option[DeltaB]] =
       underlying.map { (cf: (Client => A)) => c: Client =>
         fa(cf(c))
       } { (cf: (Client => Option[DeltaA])) => c: Client =>
@@ -38,14 +38,14 @@ class SessionIncBehavior[A, DeltaA] private[core] (
           }
       }
 
-    new SessionIncBehavior(newUnderlying)
+    new SessionIBehavior(newUnderlying)
   }
 
-  def map2[B, DeltaB, C, DeltaC](b: SessionTier#IncrementalBehavior[B, DeltaB])(
+  def map2[B, DeltaB, C, DeltaC](b: SessionTier#IBehavior[B, DeltaB])(
       valueFun: (A, B) => C)(
       deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
-      foldFun: (C, DeltaC) => C): SessionTier#IncrementalBehavior[C, DeltaC] = {
-    val newUnderlying: AppIncBehavior[Client => C, Client => Option[DeltaC]] =
+      foldFun: (C, DeltaC) => C): SessionTier#IBehavior[C, DeltaC] = {
+    val newUnderlying: AppIBehavior[Client => C, Client => Option[DeltaC]] =
       underlying.map2(b.underlying) {
         (cfA: (Client => A), cfB: (Client => B)) => c: Client =>
           valueFun(cfA(c), cfB(c))
@@ -78,7 +78,7 @@ class SessionIncBehavior[A, DeltaA] private[core] (
         cfDC(c).fold(cfC(c))(dc => foldFun(cfC(c), dc))
       }
 
-    new SessionIncBehavior(newUnderlying)
+    new SessionIBehavior(newUnderlying)
   }
 
   def snapshotWith[B, C](ev: SessionTier#Event[B])(
@@ -92,25 +92,25 @@ class SessionIncBehavior[A, DeltaA] private[core] (
       }
     )
 
-  def toDiscreteBehavior: SessionTier#DiscreteBehavior[A] =
-    new SessionDiscreteBehavior(underlying.toDiscreteBehavior)
+  def toDBehavior: SessionTier#DBehavior[A] =
+    new SessionDBehavior(underlying.toDBehavior)
 }
 
-object SessionIncBehavior extends IncrementalBehaviorObject[SessionTier] {
-  override def constant[A, B](x: A): SessionIncBehavior[A, B] = {
+object SessionIBehavior extends IBehaviorObject[SessionTier] {
+  override def constant[A, B](x: A): SessionIBehavior[A, B] = {
     val src = AppEvent.empty[Client => Option[B]]
-    val inc: AppIncBehavior[Client => A, Client => Option[B]] =
+    val inc: AppIBehavior[Client => A, Client => Option[B]] =
       src.fold((_: Client) => x) { (f, _) =>
         f
       }
-    new SessionIncBehavior(inc)
+    new SessionIBehavior(inc)
   }
 
-  // FIXME TODO
-  def toApp[A, DeltaA](sessionB: SessionIncBehavior[A, DeltaA])
-    : AppIncBehavior[Map[Client, A],
+  def toApp[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])
+    : AppIBehavior[Map[Client, A],
                      (Map[Client, DeltaA], Option[ClientChange])] = {
-    sessionB.underlying.map2(AppIncBehavior.clients) { (cfA: Client => A, clients: Set[Client]) =>
+    // FIXME Relying on map.withDefault AGAIN (switch to initial values?)
+    sessionB.underlying.map2(AppIBehavior.clients) { (cfA: Client => A, clients: Set[Client]) =>
       clients.map(c => c -> cfA(c)).toMap.withDefault(cfA)
     } { (cfA: Client => A, clients: Set[Client], ior: Ior[Client => Option[DeltaA], ClientChange]) =>
       ior match {
@@ -144,10 +144,10 @@ object SessionIncBehavior extends IncrementalBehaviorObject[SessionTier] {
     }
   }
 
-  def toClient[A, DeltaA](sessionB: SessionIncBehavior[A, DeltaA])(
+  def toClient[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])(
       implicit dec: Decoder[A],
       decD: Decoder[DeltaA],
       enc: Encoder[A],
-      encD: Encoder[DeltaA]): ClientIncBehavior[A, DeltaA] =
-    AppIncBehavior.toClient(sessionB.underlying)
+      encD: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] =
+    AppIBehavior.toClient(sessionB.underlying)
 }

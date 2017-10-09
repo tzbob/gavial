@@ -5,24 +5,24 @@ import cats.data.Ior
 import hokko.syntax.SnapshottableSyntax
 import hokko.core.tc
 
-trait IncrementalBehavior[T <: Tier, A, DeltaA] {
+trait IBehavior[T <: Tier, A, DeltaA] {
   private[core] def accumulator: (A, DeltaA) => A
 
   def changes: T#Event[A]
   def deltas: T#Event[DeltaA]
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
-      accumulator: (B, DeltaB) => B): T#IncrementalBehavior[B, DeltaB]
-  def map2[B, DeltaB, C, DeltaC](b: T#IncrementalBehavior[B, DeltaB])(
+      accumulator: (B, DeltaB) => B): T#IBehavior[B, DeltaB]
+  def map2[B, DeltaB, C, DeltaC](b: T#IBehavior[B, DeltaB])(
       valueFun: (A, B) => C)(
       deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
       foldFun: (C, DeltaC) => C
-  ): T#IncrementalBehavior[C, DeltaC]
+  ): T#IBehavior[C, DeltaC]
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
-  def toDiscreteBehavior: T#DiscreteBehavior[A]
+  def toDBehavior: T#DBehavior[A]
 }
 
-object IncrementalBehavior {
+object IBehavior {
   private[core] def transformToNormal[X, Y](
       f: (Client => X, Client => Option[Y]) => (Client => X)
   ): (X, Y) => X = { (x, y) =>
@@ -44,18 +44,18 @@ object IncrementalBehavior {
   }
 }
 
-trait IncrementalBehaviorObject[SubT <: Tier { type T = SubT }]
-    extends SnapshottableSyntax[SubT#Event, SubT#DiscreteBehavior] {
+trait IBehaviorObject[SubT <: Tier { type T = SubT }]
+    extends SnapshottableSyntax[SubT#Event, SubT#DBehavior] {
 
-  type IncrementalBehaviorA[A] = SubT#IncrementalBehavior[A, _]
+  type IBehaviorA[A] = SubT#IBehavior[A, _]
 
-  def constant[A, B](x: A): SubT#IncrementalBehavior[A, B]
+  def constant[A, B](x: A): SubT#IBehavior[A, B]
 
-  implicit val mtfrpIncrementalBehaviorInstances
-    : tc.Snapshottable[IncrementalBehaviorA, SubT#Event] =
-    new tc.Snapshottable[IncrementalBehaviorA, SubT#Event] {
+  implicit val mtfrpIBehaviorInstances
+    : tc.Snapshottable[IBehaviorA, SubT#Event] =
+    new tc.Snapshottable[IBehaviorA, SubT#Event] {
       override def snapshotWith[A, B, C](
-          b: IncrementalBehaviorA[A],
+          b: IBehaviorA[A],
           ev: SubT#Event[B])(f: (A, B) => C): SubT#Event[C] =
         b.snapshotWith(ev)(f)
     }

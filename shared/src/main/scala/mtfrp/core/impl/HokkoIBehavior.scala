@@ -2,17 +2,16 @@ package mtfrp.core.impl
 
 import cats.data.Ior
 import hokko.core
-import hokko.core.IBehavior
 import mtfrp.core._
 import mtfrp.core.mock.MockBuilder
 
-class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
+class HokkoIBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
     private[core] val rep: core.IBehavior[A, DeltaA],
     private[core] val initial: A,
     private[core] val graph: ReplicationGraph,
     private[core] val accumulator: (A, DeltaA) => A
 )(implicit mockBuilder: MockBuilder[T#Replicated])
-    extends IncrementalBehavior[T, A, DeltaA] {
+    extends IBehavior[T, A, DeltaA] {
 
   private[this] val builder = implicitly[HokkoBuilder[T]]
 
@@ -21,19 +20,19 @@ class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
   def deltas: T#Event[DeltaA] = builder.event(rep.deltas, graph)
 
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
-      accumulator: (B, DeltaB) => B): T#IncrementalBehavior[B, DeltaB] =
-    builder.incrementalBehavior(
+      accumulator: (B, DeltaB) => B): T#IBehavior[B, DeltaB] =
+    builder.IBehavior(
       rep.incMap(fa)(fb)(accumulator),
       fa(initial),
       graph,
       accumulator
     )
 
-  def map2[B, DeltaB, C, DeltaC](b: T#IncrementalBehavior[B, DeltaB])(
+  def map2[B, DeltaB, C, DeltaC](b: T#IBehavior[B, DeltaB])(
       valueFun: (A, B) => C)(
       deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
-      foldFun: (C, DeltaC) => C): T#IncrementalBehavior[C, DeltaC] =
-    builder.incrementalBehavior(
+      foldFun: (C, DeltaC) => C): T#IBehavior[C, DeltaC] =
+    builder.IBehavior(
       rep.incMap2(b.rep)(valueFun)(deltaFun)(foldFun),
       valueFun(initial, b.initial),
       graph + b.graph,
@@ -41,22 +40,23 @@ class HokkoIncBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
     )
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    builder.event(IBehavior.syntaxSnapshottable(rep).snapshotWith(ev.rep)(f),
-                  graph + ev.graph)
+    builder.event(
+      core.IBehavior.syntaxSnapshottable(rep).snapshotWith(ev.rep)(f),
+      graph + ev.graph)
 
-  def toDiscreteBehavior: T#DiscreteBehavior[A] =
-    builder.discreteBehavior(rep.toDBehavior, initial, graph)
+  def toDBehavior: T#DBehavior[A] =
+    builder.DBehavior(rep.toDBehavior, initial, graph)
 
 }
 
-abstract class HokkoIncrementalBehaviorObject[
+abstract class HokkoIBehaviorObject[
     SubT <: HokkoTier { type T = SubT }: HokkoBuilder]
-    extends IncrementalBehaviorObject[SubT] {
+    extends IBehaviorObject[SubT] {
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[SubT]]
 
-  def constant[A, B](x: A): SubT#IncrementalBehavior[A, B] =
-    hokkoBuilder.incrementalBehavior(IBehavior.constant(x),
-                                     x,
-                                     ReplicationGraph.start,
-                                     (a: A, _: Any) => a)
+  def constant[A, B](x: A): SubT#IBehavior[A, B] =
+    hokkoBuilder.IBehavior(core.IBehavior.constant(x),
+                           x,
+                           ReplicationGraph.start,
+                           (a: A, _: Any) => a)
 }

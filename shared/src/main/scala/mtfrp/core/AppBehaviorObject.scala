@@ -6,5 +6,5 @@ trait AppBehaviorObject {
       v
     })
 
-  val clients: AppBehavior[Set[Client]] = AppDiscreteBehavior.clients.toBehavior
+  val clients: AppBehavior[Set[Client]] = AppDBehavior.clients.toBehavior
 }

@@ -5,8 +5,8 @@ trait SessionTier extends Tier {
 
   type Event[A]                       = SessionEvent[A]
   type Behavior[A]                    = SessionBehavior[A]
-  type DiscreteBehavior[A]            = SessionDiscreteBehavior[A]
-  type IncrementalBehavior[A, DeltaA] = SessionIncBehavior[A, DeltaA]
+  type DBehavior[A]            = SessionDBehavior[A]
+  type IBehavior[A, DeltaA] = SessionIBehavior[A, DeltaA]
 
   type Replicated = ClientTier
 }

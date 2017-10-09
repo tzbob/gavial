@@ -20,7 +20,7 @@ class SessionEvent[A] private[core] (
   }
 
   def fold[B](initial: B)(
-      f: (B, A) => B): SessionTier#IncrementalBehavior[B, A] = {
+      f: (B, A) => B): SessionTier#IBehavior[B, A] = {
 
     val initialF: (Client) => B = (_: Client) => initial
     val newRep = underlying.fold(initialF) {
@@ -32,7 +32,7 @@ class SessionEvent[A] private[core] (
         }
     }
 
-    new SessionIncBehavior(newRep)
+    new SessionIBehavior(newRep)
   }
 
   def unionWith(b: SessionTier#Event[A])(
@@ -61,7 +61,7 @@ object SessionEvent extends EventObject[SessionTier] {
   }
 
   def toApp[A](sessionEvent: SessionEvent[A]): AppEvent[Map[Client, A]] = {
-    val currentClients = AppDiscreteBehavior.clients
+    val currentClients = AppDBehavior.clients
 
     currentClients.snapshotWith(sessionEvent.underlying) { (clients, cfA) =>
       val clientPulses = clients.map { c =>

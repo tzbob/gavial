@@ -40,7 +40,7 @@ class ScalaTagsTest extends WordSpec with Matchers {
         lazy val ui =
           numbers
             .fold(0)(_ + _)
-            .toDiscreteBehavior
+            .toDBehavior
             .map(nr => div(nr, addition))
       }
 
@@ -73,9 +73,9 @@ class ScalaTagsTest extends WordSpec with Matchers {
         val decButton = mkButton(decInput, "Decrement", dec)
 
         val state =
-          incInput.unionWith(decInput)(_ + _).fold(0)(_ + _).toDiscreteBehavior
+          incInput.unionWith(decInput)(_ + _).fold(0)(_ + _).toDBehavior
 
-        val ui: ClientDiscreteBehavior[UI.HTML] = state.map(
+        val ui: ClientDBehavior[UI.HTML] = state.map(
           v =>
             div(
               div("Current count: ", span(v)),
@@ -120,7 +120,7 @@ class ScalaTagsTest extends WordSpec with Matchers {
         val snapped = intSink.snapshotWith(event) { (int, _) =>
           int
         }
-        val folded = snapped.fold(0)(_ + _).toDiscreteBehavior
+        val folded = snapped.fold(0)(_ + _).toDBehavior
 
         lazy val ui = folded.map { x =>
           div(x, twentyDivRead)

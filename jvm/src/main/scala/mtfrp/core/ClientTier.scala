@@ -49,30 +49,30 @@ object ClientBehavior extends MockBehaviorObject[ClientTier] {
   )
 }
 
-class ClientDiscreteBehavior[A] private[core] (
+class ClientDBehavior[A] private[core](
     graph: ReplicationGraph,
     initial: A
-) extends MockDiscreteBehavior[ClientTier, A](graph, initial)
+) extends MockDBehavior[ClientTier, A](graph, initial)
 
-object ClientDiscreteBehavior extends MockDiscreteBehaviorObject[ClientTier]
+object ClientDBehavior extends MockDBehaviorObject[ClientTier]
 
-class ClientIncBehavior[A, DeltaA] private[core] (
+class ClientIBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A,
     initial: A
-) extends MockIncBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
+) extends MockIBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
 
-object ClientIncBehavior extends MockIncrementalBehaviorObject {
+object ClientIBehavior extends MockIBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
-      clientBeh: ClientIncBehavior[A, DeltaA])
-    : AppIncBehavior[immutable.Map[Client, A], (Client, DeltaA)] = {
+      clientBeh: ClientIBehavior[A, DeltaA])
+    : AppIBehavior[immutable.Map[Client, A], (Client, DeltaA)] = {
     val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
     val newGraph =
       ReplicationGraphServer.ReceiverBehavior[A, DeltaA](clientBeh.graph)
 
     val transformed =
-      IncrementalBehavior.transformFromNormal(clientBeh.accumulator)
+      IBehavior.transformFromNormal(clientBeh.accumulator)
     // FIXME: relying on Map.default is dangerous
     val defaultValue =
       Map.empty[Client, A].withDefaultValue(clientBeh.initial)
@@ -81,13 +81,13 @@ object ClientIncBehavior extends MockIncrementalBehaviorObject {
     val behavior = deltas.fold(defaultValue)(transformed)
 
     hokkoBuilder
-      .incrementalBehavior(behavior, defaultValue, newGraph, transformed)
+      .IBehavior(behavior, defaultValue, newGraph, transformed)
   }
 
   def toSession[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
-      clientBeh: ClientIncBehavior[A, DeltaA])
-    : SessionIncBehavior[A, DeltaA] = {
-    val ib: AppIncBehavior[Client => A, Client => Option[DeltaA]] =
+      clientBeh: ClientIBehavior[A, DeltaA])
+    : SessionIBehavior[A, DeltaA] = {
+    val ib: AppIBehavior[Client => A, Client => Option[DeltaA]] =
       toApp(clientBeh).map { m =>
         m.apply _
       } {
@@ -102,7 +102,7 @@ object ClientIncBehavior extends MockIncrementalBehaviorObject {
         }
       }
 
-    new SessionIncBehavior(ib)
+    new SessionIBehavior(ib)
   }
 }
 

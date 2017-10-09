@@ -8,8 +8,8 @@ trait MockTier extends Tier {
 
   type Event[A] <: MockEvent[T, A]
   type Behavior[A] <: MockBehavior[T, A]
-  type DiscreteBehavior[A] <: MockDiscreteBehavior[T, A]
-  type IncrementalBehavior[A, DeltaA] <: MockIncBehavior[T, A, DeltaA]
+  type DBehavior[A] <: MockDBehavior[T, A]
+  type IBehavior[A, DeltaA] <: MockIBehavior[T, A, DeltaA]
 
   type Replicated <: HokkoTier
 }
@@ -17,11 +17,11 @@ trait MockTier extends Tier {
 trait MockBuilder[T <: MockTier] {
   def event[A](graph: ReplicationGraph): T#Event[A]
   def behavior[A](graph: ReplicationGraph): T#Behavior[A]
-  def discreteBehavior[A](graph: ReplicationGraph,
-                          initial: A): T#DiscreteBehavior[A]
-  def incrementalBehavior[A, DeltaA](
+  def DBehavior[A](graph: ReplicationGraph,
+                          initial: A): T#DBehavior[A]
+  def IBehavior[A, DeltaA](
       graph: ReplicationGraph,
       accumulator: (A, DeltaA) => A,
       initial: A
-  ): T#IncrementalBehavior[A, DeltaA]
+  ): T#IBehavior[A, DeltaA]
 }

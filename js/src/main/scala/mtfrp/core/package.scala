@@ -16,20 +16,20 @@ package object core {
                     graph: ReplicationGraph): ClientTier#Behavior[A] =
       new ClientBehavior(rep, graph)
 
-    def discreteBehavior[A](
+    def DBehavior[A](
         rep: core.DBehavior[A],
         initial: A,
         graph: ReplicationGraph
-    ): ClientTier#DiscreteBehavior[A] =
-      new ClientDiscreteBehavior(rep, initial, graph)
+    ): ClientTier#DBehavior[A] =
+      new ClientDBehavior(rep, initial, graph)
 
-    def incrementalBehavior[A, DeltaA](
+    def IBehavior[A, DeltaA](
         rep: core.IBehavior[A, DeltaA],
         initial: A,
         graph: ReplicationGraph,
         accumulator: (A, DeltaA) => A
-    ): ClientTier#IncrementalBehavior[A, DeltaA] =
-      new ClientIncBehavior(rep, initial, graph, accumulator)
+    ): ClientTier#IBehavior[A, DeltaA] =
+      new ClientIBehavior(rep, initial, graph, accumulator)
   }
 
   implicit object AppBuilder extends MockBuilder[AppTier] {
@@ -39,15 +39,15 @@ package object core {
     def behavior[A](graph: ReplicationGraph): AppTier#Behavior[A] =
       new AppBehavior(graph)
 
-    def discreteBehavior[A](graph: ReplicationGraph,
-                            initial: A): AppTier#DiscreteBehavior[A] =
-      new AppDiscreteBehavior(graph, initial)
+    def DBehavior[A](graph: ReplicationGraph,
+                            initial: A): AppTier#DBehavior[A] =
+      new AppDBehavior(graph, initial)
 
-    def incrementalBehavior[A, DeltaA](
+    def IBehavior[A, DeltaA](
         graph: ReplicationGraph,
         accumulator: (A, DeltaA) => A,
         initial: A
-    ): AppTier#IncrementalBehavior[A, DeltaA] =
-      new AppIncBehavior(graph, accumulator, initial)
+    ): AppTier#IBehavior[A, DeltaA] =
+      new AppIBehavior(graph, accumulator, initial)
   }
 }

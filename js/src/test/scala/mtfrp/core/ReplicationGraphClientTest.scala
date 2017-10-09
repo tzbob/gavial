@@ -13,14 +13,14 @@ class ReplicationGraphClientTest extends WordSpec {
   }
 
   def makeAppBehavior
-    : (HC.EventSource[Int], AppIncBehavior[Map[Client, Int], (Client, Int)]) = {
+    : (HC.EventSource[Int], AppIBehavior[Map[Client, Int], (Client, Int)]) = {
     val src = HC.Event.source[Int]
     src -> makeCountingBehavior(ClientEvent(src))
   }
 
   def makeCountingBehavior(beh1src: ClientEvent[Int])
-    : AppIncBehavior[Map[Client, Int], (Client, Int)] = {
-    ClientIncBehavior.toApp(beh1src.fold(0)(_ + _))
+    : AppIBehavior[Map[Client, Int], (Client, Int)] = {
+    ClientIBehavior.toApp(beh1src.fold(0)(_ + _))
   }
 
   "ReplicationGraphClientTest" should {
@@ -29,9 +29,9 @@ class ReplicationGraphClientTest extends WordSpec {
       AppEvent.toClient(
         new AppEvent[Client => Option[Int]](ReplicationGraph.start))
 
-    def makeClientBehavior: ClientIncBehavior[Int, Int] =
-      AppIncBehavior.toClient(
-        new AppIncBehavior[Client => Int, Client => Option[Int]](
+    def makeClientBehavior: ClientIBehavior[Int, Int] =
+      AppIBehavior.toClient(
+        new AppIBehavior[Client => Int, Client => Option[Int]](
           ReplicationGraph.start,
           null,
           _ => 0))
@@ -62,7 +62,7 @@ class ReplicationGraphClientTest extends WordSpec {
       val (ev1src, ev1)      = makeAppEvent
       val (beh1srcsrc, beh1) = makeAppBehavior
 
-      val combined  = beh1.toDiscreteBehavior.sampledBy(ev1)
+      val combined  = beh1.toDBehavior.sampledBy(ev1)
       val exitEvent = new ReplicationGraphClient(combined.graph).exitEvent
 
       val engine = HC.Engine.compile(exitEvent)

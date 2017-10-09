@@ -1,8 +1,8 @@
 package mtfrp.core
 
-class SessionDiscreteBehavior[A] private[core] (
-    val underlying: AppDiscreteBehavior[Client => A]
-) extends DiscreteBehavior[SessionTier, A] {
+class SessionDBehavior[A] private[core](
+    val underlying: AppDBehavior[Client => A]
+) extends DBehavior[SessionTier, A] {
   override def changes(): SessionEvent[A] = {
     val changes = underlying.changes.map { (cf: Client => A) => c: Client =>
       Some(cf(c)): Option[A]
@@ -13,13 +13,13 @@ class SessionDiscreteBehavior[A] private[core] (
   override def toBehavior: SessionTier#Behavior[A] =
     new SessionBehavior(underlying.toBehavior)
 
-  override def reverseApply[B](fb: SessionTier#DiscreteBehavior[A => B])
-    : SessionTier#DiscreteBehavior[B] = {
+  override def reverseApply[B](fb: SessionTier#DBehavior[A => B])
+    : SessionTier#DBehavior[B] = {
     val newFb = fb.underlying.map { f => cf: (Client => A) => c: Client =>
       f(c)(cf(c))
     }
     val revApped = underlying.reverseApply(newFb)
-    new SessionDiscreteBehavior(revApped)
+    new SessionDBehavior(revApped)
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
@@ -35,12 +35,12 @@ class SessionDiscreteBehavior[A] private[core] (
   }
 }
 
-object SessionDiscreteBehavior extends DiscreteBehaviorObject[SessionTier] {
-  override def constant[A](x: A): SessionDiscreteBehavior[A] =
-    new SessionDiscreteBehavior(AppDiscreteBehavior.constant((_: Client) => x))
+object SessionDBehavior extends DBehaviorObject[SessionTier] {
+  override def constant[A](x: A): SessionDBehavior[A] =
+    new SessionDBehavior(AppDBehavior.constant((_: Client) => x))
 
-  def toApp[A](sessionBehavior: SessionDiscreteBehavior[A])
-    : AppDiscreteBehavior[Map[Client, A]] =
-    AppDiscreteBehavior.clients.map2(sessionBehavior.underlying)(
+  def toApp[A](sessionBehavior: SessionDBehavior[A])
+    : AppDBehavior[Map[Client, A]] =
+    AppDBehavior.clients.map2(sessionBehavior.underlying)(
       SessionBehavior.clientMerger)
 }
