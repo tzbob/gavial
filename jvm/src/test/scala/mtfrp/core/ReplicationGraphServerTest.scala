@@ -1,5 +1,6 @@
 package mtfrp.core
 
+import hokko.core.Engine
 import hokko.{core => HC}
 import mtfrp.core.ReplicationGraph.Pulse
 import org.scalatest.{Matchers, WordSpec}
@@ -20,11 +21,12 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
   def makeCountingBehavior(
       beh1src: AppEvent[Client => Option[Int]]): ClientIBehavior[Int, Int] = {
-    AppIBehavior.toClient(
-      beh1src
-        .fold((c: Client) => 0) { (accF, newF) => (c: Client) =>
-          accF(c) + newF(c).getOrElse(0)
-        })
+    AppIBehavior.toClient(beh1src
+                            .fold((c: Client) => 0) {
+                              (accF, newF) => (c: Client) =>
+                                accF(c) + newF(c).getOrElse(0)
+                            },
+                          0)
   }
 
   "ReplicationGraphServerTest" should {
@@ -113,6 +115,74 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
       assert(changePulse.get._2 === (fresh -> 20))
       assert(eventPulse.get._2 === (fresh  -> 30))
+    }
+
+    "not execute a fold multiple times for resets in Session.toClient" in {
+      testDuplicateFolds { (src, eff) =>
+        val event: SessionEvent[Int] =
+          new SessionEvent(new AppEvent(src, ReplicationGraph.start))
+
+        val behavior: SessionIBehavior[Int, Int] = event.fold(0) { (acc, n) =>
+          eff()
+          acc + n
+        }
+        SessionIBehavior.toClient(behavior)
+      }
+    }
+
+    "not execute a fold multiple times for resets in AppIBehavior.broadcast" in {
+      testDuplicateFolds { (src, eff) =>
+        val event: AppEvent[Map[Client, Int]] =
+          new AppEvent(src, ReplicationGraph.start)
+        val behavior: AppIBehavior[Int, Int] =
+          event.map(_.values.head).fold(0) { (acc, n) =>
+            eff()
+            acc + n
+          }
+        AppIBehavior.broadcast(behavior)
+      }
+
+    }
+
+    def testDuplicateFolds(
+        mkClientIBehavior: (HC.EventSource[Map[Client, Int]],
+                            () => Unit) => ClientIBehavior[Int, _]) = {
+      HasToken.synchronized {
+        HasToken.reset()
+        var counter = 0
+
+        val src = HC.Event.source[Map[Client, Int]]
+
+        val client = ClientGenerator.fresh
+        val plus1  = Map(client -> 1)
+
+        val clientIBehavior = mkClientIBehavior(src, () => counter += 1)
+
+        val repGraphServer = new ReplicationGraphServer(clientIBehavior.graph)
+        val engine = HC.Engine.compile(repGraphServer.exitEvent,
+                                       repGraphServer.exitBehavior)
+
+        engine.fire(Seq(AppEvent.clientChangesSource -> Connected(client)))
+        engine.fire(Seq(src                          -> plus1))
+
+        def poll(): Seq[Message] = {
+          val values: Engine.Values = engine.askCurrentValues()
+          val exitBehaviorValue: Option[Client => Seq[Message]] =
+            values(repGraphServer.exitBehavior)
+          exitBehaviorValue.get(client)
+        }
+
+        val res = poll()
+        assert(res.size == 1)
+        assert(counter == 1)
+
+        poll()
+        assert(counter == 1)
+
+        engine.fire(Seq(src -> plus1))
+        poll()
+        assert(counter == 2)
+      }
     }
 
   }

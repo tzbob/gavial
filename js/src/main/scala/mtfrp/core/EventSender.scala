@@ -3,13 +3,12 @@ package mtfrp.core
 import hokko.{core => HC}
 import io.circe.generic.auto._
 import io.circe.syntax._
-import org.scalajs.dom
 import org.scalajs.dom.WebSocket
-import slogging.LazyLogging
+import slogging.StrictLogging
 
 class EventSender(rgc: ReplicationGraphClient,
                   engine: HC.Engine,
-                  ws: WebSocket) extends LazyLogging {
+                  ws: WebSocket) extends StrictLogging {
   def start(): Unit = {
     require(ws.readyState == WebSocket.OPEN)
     engine.subscribeForPulses { pulses =>

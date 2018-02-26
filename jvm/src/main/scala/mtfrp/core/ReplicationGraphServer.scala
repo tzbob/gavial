@@ -76,12 +76,13 @@ object ReplicationGraphServer {
   }
 
   case class SenderBehavior[A: Encoder, DeltaA: Encoder](
-      behavior: HC.IBehavior[Client => A, Client => Option[DeltaA]],
+      state: HC.CBehavior[Client => A],
+      delta: HC.Event[Client => Option[DeltaA]],
       dependency: ReplicationGraph
   ) extends ReplicationGraph.BehaviorServerToClient {
     override val deltas: SenderEvent[DeltaA] =
-      SenderEvent(behavior.deltas, dependency)
-    val message: HC.CBehavior[(Client) => Message] = behavior.toCBehavior.map {
+      SenderEvent(delta, dependency)
+    val message: HC.CBehavior[(Client) => Message] = state.map {
       evf => c: Client =>
         Message.fromPayload(this.token)(evf(c))
     }

@@ -1,12 +1,10 @@
 package mtfrp.core.mock
 
 import mtfrp.core._
-import mtfrp.core.impl.HokkoBuilder
 
 class MockBehavior[T <: MockTier: MockBuilder, A](
     private[core] val graph: ReplicationGraph
-)(implicit hokkoBuilder: HokkoBuilder[T#Replicated])
-    extends Behavior[T, A] {
+) extends Behavior[T, A] {
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 

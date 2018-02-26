@@ -4,46 +4,40 @@ import hokko.{core => HC}
 import io.circe._
 
 class SessionEvent[A] private[core] (
-    private[core] val underlying: AppEvent[Client => Option[A]]
+    private[core] val underlying: AppEvent[Map[Client, A]]
 ) extends Event[SessionTier, A] {
   private[core] val graph: ReplicationGraph = underlying.graph
 
   def collect[B](fb: A => Option[B]): SessionTier#Event[B] = {
-    val newUnderlying = underlying.collect { clientFun =>
-      // TODO: this always fires an update even if there wasn't actually any
-      // work to be done for any clients
-      Some { c: Client =>
-        clientFun(c).flatMap(fb)
-      }
+    val newUnderlying = underlying.collect { clientMap: Map[Client, A] =>
+      val mappedMap = clientMap.mapValues(fb)
+
+      val filteredMap = mappedMap.filter(_._2.isDefined)
+      if (filteredMap.isEmpty) None
+      else Option(filteredMap.mapValues(_.get))
     }
     new SessionEvent(newUnderlying)
   }
 
-  def fold[B](initial: B)(
-      f: (B, A) => B): SessionTier#IBehavior[B, A] = {
-
-    val initialF: (Client) => B = (_: Client) => initial
-    val newRep = underlying.fold(initialF) {
-      (stateFun, newEvent) => c: Client =>
-        val state = stateFun(c)
-        newEvent(c) match {
-          case Some(pulse) => f(state, pulse)
-          case None        => state
-        }
+  def fold[B](initial: B)(f: (B, A) => B): SessionTier#IBehavior[B, A] = {
+    val initialMap = Map.empty[Client, B]
+    val newRep = underlying.fold(initialMap) {
+      (stateMap: Map[Client, B], newEvent: Map[Client, A]) =>
+        SessionIBehavior.accumulatorFunWithInitial(stateMap, newEvent, initial)(
+          f)
     }
 
-    new SessionIBehavior(newRep)
+    new SessionIBehavior(newRep, initial)
   }
 
   def unionWith(b: SessionTier#Event[A])(
       f: (A, A) => A): SessionTier#Event[A] = {
     val newRep = underlying.unionWith(b.underlying) {
-      (aaClientFun, bClientFun) => c: Client =>
-        (aaClientFun(c), bClientFun(c)) match {
-          case (None, _)           => None
-          case (_, None)           => None
-          case (Some(aa), Some(b)) => Some(f(aa, b))
-        }
+      (leftMap: Map[Client, A], rightMap: Map[Client, A]) =>
+        import cats.implicits._
+
+        val commonMap = leftMap.map2(rightMap)(f)
+        leftMap ++ rightMap ++ commonMap
     }
 
     new SessionEvent(newRep)
@@ -52,27 +46,21 @@ class SessionEvent[A] private[core] (
 
 object SessionEvent extends EventObject[SessionTier] {
   override def empty[A]: SessionEvent[A] =
-    new SessionEvent(AppEvent.empty[Client => Option[A]])
+    new SessionEvent(AppEvent.empty[Map[Client, A]])
   override private[core] def apply[A](ev: HC.Event[A]): SessionEvent[A] = {
-    val hcEv = ev.map { a => c: Client =>
-      Some(a)
-    }
-    new SessionEvent(AppEvent(hcEv))
+    val appMap: AppEvent[Map[Client, A]] =
+      AppBehavior.clients.snapshotWith(AppEvent(ev)) { (clients, ev) =>
+        clients.map(_ -> ev).toMap
+      }
+    new SessionEvent(appMap)
   }
 
   def toApp[A](sessionEvent: SessionEvent[A]): AppEvent[Map[Client, A]] = {
-    val currentClients = AppDBehavior.clients
-
-    currentClients.snapshotWith(sessionEvent.underlying) { (clients, cfA) =>
-      val clientPulses = clients.map { c =>
-        c -> cfA(c)
-      }
-      clientPulses.collect { case (client, Some(a)) => (client, a) }.toMap
-    }
+    sessionEvent.underlying
   }
 
   def toClient[A](sessionEvent: SessionEvent[A])(
       implicit dec: Decoder[A],
       enc: Encoder[A]): ClientEvent[A] =
-    AppEvent.toClient(sessionEvent.underlying)
+    AppEvent.toClient(sessionEvent.underlying.map(_.get))
 }

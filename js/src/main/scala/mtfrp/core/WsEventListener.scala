@@ -2,11 +2,11 @@ package mtfrp.core
 
 import org.scalajs.dom
 import org.scalajs.dom.{MessageEvent, WebSocket}
-import slogging.LazyLogging
+import slogging.StrictLogging
 
 class WsEventListener(onOpen: WebSocket => Unit)
     extends EventListener
-    with LazyLogging {
+    with StrictLogging {
   private[this] var websocket: WebSocket = null
   def stop(): Unit =
     if (websocket != null) websocket.close()
@@ -34,8 +34,11 @@ class WsEventListener(onOpen: WebSocket => Unit)
 
     val listener = { (m: MessageEvent) =>
       val jsonData = m.data.asInstanceOf[String]
-      logger.debug(s"Message retrieved from WebSocket: $jsonData")
-      handler(jsonData)
+      if (jsonData != "hb") {
+        // ignore heartbeats
+        logger.debug(s"Message retrieved from WebSocket: $jsonData")
+        handler(jsonData)
+      }
     }
     websocket.addEventListener("message", listener)
   }

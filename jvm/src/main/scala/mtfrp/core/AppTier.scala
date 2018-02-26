@@ -35,7 +35,7 @@ class AppBehavior[A] private[core] (
 
 object AppBehavior extends HokkoBehaviorObject[AppTier] with AppBehaviorObject
 
-class AppDBehavior[A] private[core](
+class AppDBehavior[A] private[core] (
     rep: core.DBehavior[A],
     initial: A,
     graph: ReplicationGraph
@@ -45,39 +45,32 @@ object AppDBehavior
     extends HokkoDBehaviorObject[AppTier]
     with AppDBehaviorObject
 
-class AppIBehavior[A, DeltaA] private[core](
+class AppIBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
     initial: A,
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A
-) extends HokkoIBehavior[AppTier, A, DeltaA](rep,
-                                                 initial,
-                                                 graph,
-                                                 accumulator)
+) extends HokkoIBehavior[AppTier, A, DeltaA](rep, initial, graph, accumulator)
 
 object AppIBehavior
     extends HokkoIBehaviorObject[AppTier]
     with AppIBehaviorObject {
 
   def toClient[A, DeltaA](
-      appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]])(
-      implicit da: Decoder[A],
-      dda: Decoder[DeltaA],
-      ea: Encoder[A],
-      eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
+      appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]],
+      init: A)(implicit da: Decoder[A],
+               dda: Decoder[DeltaA],
+               ea: Encoder[A],
+               eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
 
-    val mockBuilder = implicitly[MockBuilder[ClientTier]]
-    val newGraph =
-      ReplicationGraphServer.SenderBehavior(appBeh.rep, appBeh.graph)
+    val accumulator = IBehavior.transformToNormal(appBeh.accumulator)
 
-    val accumulator =
-      IBehavior.transformToNormal(appBeh.accumulator)
-    // Create the initial value by evaluating the function with a fresh client
-    val initialFromFreshClient = appBeh.initial(ClientGenerator.fresh)
-
-    mockBuilder
-      .IBehavior(newGraph, accumulator, initialFromFreshClient)
+    Replicator.toClient(init,
+                        accumulator,
+                        appBeh.toDBehavior.toBehavior,
+                        appBeh.deltas)
   }
+
 }
 
 final class AppTier extends HokkoTier with AppTierLike

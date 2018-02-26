@@ -4,12 +4,12 @@ import hokko.{core => HC}
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser._
-import slogging.LazyLogging
+import slogging.StrictLogging
 
 class EventReceiver(rgc: ReplicationGraphClient,
                     engine: HC.Engine,
                     listener: EventListener)
-    extends LazyLogging {
+    extends StrictLogging {
   private[this] val pulseMakers = rgc.inputEventRouter
 
   def decodeAsPulses(
@@ -30,7 +30,10 @@ class EventReceiver(rgc: ReplicationGraphClient,
     val decodeAndFire = { (str: String) =>
       val decoded = decodeAsPulses(str)
       decoded match {
-        case Right(pulses) => engine.fire(pulses)
+        case Right(pulses) =>
+          logger.debug(s"Firing pulses: $pulses")
+          engine.fire(pulses)
+
         case Left(err) =>
           logger.info(s"Could not decode: $str, error: $err")
       }

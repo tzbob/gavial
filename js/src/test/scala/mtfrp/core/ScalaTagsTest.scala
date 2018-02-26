@@ -1,9 +1,6 @@
 package mtfrp.core
 
 import hokko.core.Engine
-import hokko.{core => HC}
-import io.circe.generic.auto._
-import io.circe.syntax._
 import org.scalajs.dom
 import org.scalajs.dom.raw.HTMLButtonElement
 import org.scalatest.{Matchers, WordSpec}
@@ -87,14 +84,11 @@ class ScalaTagsTest extends WordSpec with Matchers {
 
       val engine = setupTestBody(exampleApp)
 
-      val container = dom.document.getElementById("mtfrpcontent")
-
-
       def currentValue =
         engine.askCurrentValues()(exampleApp.state.rep.toCBehavior).get
 
       val btns = dom.document.body.querySelectorAll("button")
-      val inc = btns(0).asInstanceOf[HTMLButtonElement]
+      val inc  = btns(0).asInstanceOf[HTMLButtonElement]
 
       assert(currentValue == 0)
 
@@ -114,8 +108,10 @@ class ScalaTagsTest extends WordSpec with Matchers {
         val event = ClientEvent.source[Unit]
         val btn   = button(UI.listen(onclick, event)(_ => ()), "Trigger")
 
-        val intSink       = ClientBehavior.sink(10000)
-        val twentyDivRead = UI.read(div(btn))(intSink, _.childElementCount)
+        val intSink = ClientBehavior.sink(10000)
+        val twentyDivRead = UI.read(div(btn))(intSink,
+                                              _.childElementCount
+                                                .asInstanceOf[Int])
 
         val snapped = intSink.snapshotWith(event) { (int, _) =>
           int

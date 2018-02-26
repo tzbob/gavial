@@ -1,46 +1,51 @@
 package mtfrp.core
 
-class SessionDBehavior[A] private[core](
-    val underlying: AppDBehavior[Client => A]
+class SessionDBehavior[A] private[core] (
+    val underlying: AppDBehavior[Map[Client, A]]
 ) extends DBehavior[SessionTier, A] {
-  override def changes(): SessionEvent[A] = {
-    val changes = underlying.changes.map { (cf: Client => A) => c: Client =>
-      Some(cf(c)): Option[A]
-    }
-    new SessionEvent(changes)
-  }
+  override def changes(): SessionEvent[A] =
+    new SessionEvent(underlying.changes)
 
   override def toBehavior: SessionTier#Behavior[A] =
     new SessionBehavior(underlying.toBehavior)
 
-  override def reverseApply[B](fb: SessionTier#DBehavior[A => B])
-    : SessionTier#DBehavior[B] = {
-    val newFb = fb.underlying.map { f => cf: (Client => A) => c: Client =>
-      f(c)(cf(c))
-    }
-    val revApped = underlying.reverseApply(newFb)
+  override def reverseApply[B](
+      fb: SessionTier#DBehavior[A => B]): SessionTier#DBehavior[B] = {
+    val mapFb: AppDBehavior[Map[Client, A] => Map[Client, B]] =
+      fb.underlying.map {
+        (mapF: Map[Client, A => B]) => mapArg: Map[Client, A] =>
+          val commonClients = mapF.keySet intersect mapArg.keySet
+
+          commonClients.map { client =>
+            client -> mapF(client)(mapArg(client))
+          }.toMap
+      }
+
+    val revApped = underlying.reverseApply(mapFb)
     new SessionDBehavior(revApped)
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
       f: (A, B) => C): SessionEvent[C] = {
     val newUnder = underlying.snapshotWith(ev.underlying) {
-      (cfA: Client => A, cfB: Client => Option[B]) => c: Client =>
-        val maybeB = cfB(c)
-        maybeB.map { b =>
-          f(cfA(c), b)
-        }
+      (cfA: Map[Client, A], cfB: Map[Client, B]) =>
+        val commonClients = cfA.keySet intersect cfB.keySet
+        commonClients.map { client =>
+          client -> f(cfA(client), cfB(client))
+        }.toMap
     }
     new SessionEvent(newUnder)
   }
 }
 
 object SessionDBehavior extends DBehaviorObject[SessionTier] {
-  override def constant[A](x: A): SessionDBehavior[A] =
-    new SessionDBehavior(AppDBehavior.constant((_: Client) => x))
+  override def constant[A](x: A): SessionDBehavior[A] = {
+    val clientMap = AppDBehavior.clients.map { clients =>
+      clients.map(_ -> x).toMap
+    }
+    new SessionDBehavior(clientMap)
+  }
 
-  def toApp[A](sessionBehavior: SessionDBehavior[A])
-    : AppDBehavior[Map[Client, A]] =
-    AppDBehavior.clients.map2(sessionBehavior.underlying)(
-      SessionBehavior.clientMerger)
+  def toApp[A](sb: SessionDBehavior[A]): AppDBehavior[Map[Client, A]] =
+    sb.underlying
 }

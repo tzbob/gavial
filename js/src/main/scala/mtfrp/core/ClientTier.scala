@@ -6,11 +6,6 @@ import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl._
 import mtfrp.core.mock.MockBuilder
 
-import scala.collection.immutable
-
-// Define all Client types
-// Create all Client constructors
-
 class ClientEvent[A] private[core] (rep: core.Event[A], graph: ReplicationGraph)
     extends HokkoEvent[ClientTier, A](rep, graph)
 
@@ -19,7 +14,7 @@ class ClientEventSource[A] private[core] (
     graph: ReplicationGraph
 ) extends ClientEvent[A](rep, graph)
 
-object ClientEvent extends HokkoEventObject {
+object ClientEvent extends HokkoEventObject with ClientEventObject {
   def source[A]: ClientEventSource[A] =
     new ClientEventSource(core.Event.source[A], ReplicationGraph.start)
 
@@ -30,14 +25,6 @@ object ClientEvent extends HokkoEventObject {
       ReplicationGraphClient.SenderEvent(clientEv.rep, clientEv.graph)
     mockBuilder.event(newGraph)
   }
-
-  def toSession[A: Decoder: Encoder](
-      clientEv: ClientEvent[A]): SessionEvent[A] =
-    new SessionEvent(toApp(clientEv).map {
-      case (c, a) =>
-        (c0: Client) =>
-          if (c == c0) Some(a) else None
-    })
 }
 
 class ClientBehavior[A] private[core] (
@@ -57,7 +44,7 @@ object ClientBehavior extends HokkoBehaviorObject[ClientTier] {
   )
 }
 
-class ClientDBehavior[A] private[core](
+class ClientDBehavior[A] private[core] (
     rep: core.DBehavior[A],
     initial: A,
     graph: ReplicationGraph
@@ -71,47 +58,25 @@ class ClientIBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A
 ) extends HokkoIBehavior[ClientTier, A, DeltaA](rep,
-                                                    initial,
-                                                    graph,
-                                                    accumulator)
+                                                  initial,
+                                                  graph,
+                                                  accumulator)
 
-object ClientIBehavior extends HokkoIBehaviorObject {
+object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
       clientBeh: ClientIBehavior[A, DeltaA])
-    : AppIBehavior[immutable.Map[Client, A], (Client, DeltaA)] = {
+    : AppIBehavior[Map[Client, A], (Client, DeltaA)] = {
     val mockBuilder = implicitly[MockBuilder[AppTier]]
 
     val newGraph =
       ReplicationGraphClient.SenderBehavior(clientBeh.rep, clientBeh.graph)
 
-    val transformed =
-      IBehavior.transformFromNormal(clientBeh.accumulator)
+    val transformed = IBehavior.transformFromNormal(clientBeh.accumulator)
     // FIXME: relying on Map.default is dangerous
     val defaultValue =
       Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
     mockBuilder.IBehavior(newGraph, transformed, defaultValue)
-  }
-
-  def toSession[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
-      clientBeh: ClientIBehavior[A, DeltaA])
-    : SessionIBehavior[A, DeltaA] = {
-    val ib: AppIBehavior[Client => A, Client => Option[DeltaA]] =
-      toApp(clientBeh).map { m =>
-        m.apply _
-      } {
-        case (c, deltaA) =>
-          (c0: Client) =>
-            if (c0 == c) Some(deltaA) else None
-      } { (cfA, cfOptDA) => (c: Client) =>
-        val a = cfA(c)
-        cfOptDA(c) match {
-          case Some(da) => clientBeh.accumulator(a, da)
-          case None     => a
-        }
-      }
-
-    new SessionIBehavior(ib)
   }
 }
 

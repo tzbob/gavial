@@ -2,9 +2,9 @@ resolvers in ThisBuild += "Sonatype OSS Snapshots" at
   "https://oss.sonatype.org/content/repositories/snapshots"
 
 organization in ThisBuild := "be.tzbob"
-scalaVersion in ThisBuild := "2.12.1"
-crossScalaVersions in ThisBuild := Seq("2.11.8", "2.12.1")
-version in ThisBuild := "0.3.1-SNAPSHOT"
+scalaVersion in ThisBuild := "2.12.4"
+crossScalaVersions in ThisBuild := Seq("2.11.8", "2.12.4")
+version in ThisBuild := "0.3.2-SNAPSHOT"
 
 scalacOptions in ThisBuild ++= Seq(
   "-encoding",
@@ -16,17 +16,19 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ywarn-dead-code",
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",
-  "-language:higherKinds"
+  "-language:higherKinds",
+  "-Ypartial-unification"
 )
 
 lazy val multitier = crossProject
   .in(file("."))
   .settings(
     name := "kooi",
+    addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4"),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats"      % "0.9.0",
       "biz.enef"      %%% "slogging"  % "0.5.3",
-      "be.tzbob"      %%% "hokko"     % "0.4.3-SNAPSHOT",
+      "be.tzbob"      %%% "hokko"     % "0.4.7-SNAPSHOT",
       "com.lihaoyi"   %%% "scalatags" % "0.6.3",
       "org.scalatest" %%% "scalatest" % "3.0.1" % "test"
     ) ++ Seq(
@@ -44,7 +46,6 @@ lazy val multitier = crossProject
     )
   )
   .jsSettings(
-    enableReloadWorkflow := true,
     useYarn := true,
     npmDependencies in Test += "event-source-polyfill" -> "0.0.9",
     jsDependencies += RuntimeDOM,

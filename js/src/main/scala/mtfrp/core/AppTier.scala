@@ -5,6 +5,7 @@ import hokko.core
 import io.circe._
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
+import slogging.StrictLogging
 
 // Define all App types
 // Create all App constructors
@@ -43,19 +44,17 @@ class AppIBehavior[A, DeltaA] private[core] (
     initial: A
 ) extends MockIBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
 
-import slogging.LazyLogging
-
 object AppIBehavior
     extends MockIBehaviorObject[AppTier]
     with AppIBehaviorObject
-    with LazyLogging {
+    with StrictLogging {
 
   def toClient[A, DeltaA](
-      appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]])(
-      implicit da: Decoder[A],
-      dda: Decoder[DeltaA],
-      ea: Encoder[A],
-      eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
+      appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]],
+      init: A)(implicit da: Decoder[A],
+               dda: Decoder[DeltaA],
+               ea: Encoder[A],
+               eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
 
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
@@ -71,17 +70,15 @@ object AppIBehavior
     reset request, the initial values of behaviors are only used as
     an asap-initialisation mechanism.
      */
-    val init: A = appBeh.initial(ClientGenerator.static)
 
     val transformedAccumulator =
       IBehavior.transformToNormal(appBeh.accumulator)
 
     val replicatedBehavior: core.IBehavior[A, DeltaA] =
       deltas
-        .fold(init) { (acc, n) =>
+        .resetFold(resets)(init) { (acc, n) =>
           transformedAccumulator(acc, n)
         }
-        .resetState(resets)
 
     hokkoBuilder.IBehavior(replicatedBehavior,
                            init,

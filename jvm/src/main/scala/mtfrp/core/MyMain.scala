@@ -11,7 +11,6 @@ import hokko.core.Engine
 
 import scala.concurrent.Future
 import scala.io.StdIn
-import scala.language.dynamics
 
 trait MyMain extends FrpMain {
 

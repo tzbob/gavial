@@ -1,5 +1,7 @@
 package mtfrp.core
 
+import java.util.concurrent.TimeUnit
+
 import akka.Done
 import akka.http.scaladsl.model.ws
 import akka.http.scaladsl.model.ws.TextMessage
@@ -11,16 +13,19 @@ import hokko.core.Engine.Subscription
 import hokko.{core => HC}
 import io.circe.generic.auto._
 import io.circe.syntax._
-import slogging.LazyLogging
+import slogging.StrictLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success}
 
-object RouteCreator extends LazyLogging {
+object RouteCreator extends StrictLogging {
   def buildInputSinkGeneric(
       propagator: Seq[Message] => Unit): Sink[ws.Message, Future[Done]] = {
     Sink.foreach[ws.Message] {
       case ws.TextMessage.Strict(data) =>
+        logger.debug(s"Received $data as a TextMessage")
         val messagesEither = io.circe.parser.decode[Seq[Message]](data)
         messagesEither match {
           case Left(err)       => logger.error(err.toString)
@@ -46,34 +51,50 @@ object RouteCreator extends LazyLogging {
   }
 }
 
-class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
+class RouteCreator(graph: ReplicationGraph) extends StrictLogging {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
 
-  val engine: HC.Engine = HC.Engine.compile(exitData.event)
+  val engine: HC.Engine = HC.Engine.compile(exitData.event, exitData.behavior)
 
-  def buildInputSink(client: Client): Sink[ws.Message, Future[Done]] =
-    RouteCreator.buildInputSinkGeneric { messages =>
-      val pulses = messages.flatMap { msg =>
-        inputRouter(client, msg)
+  def buildInputSink(client: Client): Sink[ws.Message, Any] =
+    RouteCreator
+      .buildInputSinkGeneric { messages =>
+        val pulses = messages.flatMap { msg =>
+          inputRouter(client, msg)
+        }
+        logger.debug(s"Firing pulses: $pulses")
+        engine.fire(pulses)
       }
-      engine.fire(pulses)
-    }
+      .mapMaterializedValue { fut =>
+        fut.onComplete {
+          case Success(done) =>
+            logger.debug(s"Input from Websocket is closed (success): ${done}")
+            notifyClientHasDisconnected(client)
+          case Failure(fail) =>
+            logger.error(s"Input from Websocket is closed (failure): ${fail}")
+            throw fail
+        }
+      }
 
   def buildExitSource(client: Client): Source[ws.Message, Unit] = {
     val queueSize = Int.MaxValue // FIXME: pick something sensible
     val src       = Source.queue[ws.Message](queueSize, OverflowStrategy.fail)
-    src.watchTermination() { (queue, done) =>
-      notifyClientHasConnected(client)
+    src
+      .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
+                 () => TextMessage.Strict("hb"))
+      .watchTermination() { (queue, done) =>
+        notifyClientHasConnected(client)
 
-      queueResets(client, queue)
-      val subscription = queueUpdates(client, queue)
+        queueResets(client, queue)
+        val subscription = queueUpdates(client, queue)
 
-      done.onComplete { _ =>
-        subscription.cancel()
-        notifyClientHasDisconnected(client)
+        done.onComplete { _ =>
+          logger.debug(s"Output for Websocket is closed")
+          subscription.cancel()
+          notifyClientHasDisconnected(client)
+        }
       }
-    }
   }
 
   private[core] def queueUpdates(
@@ -81,6 +102,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
       queue: SourceQueueWithComplete[ws.Message]): Subscription = {
     engine.subscribeForPulses { pulses =>
       val pulse = pulses(exitData.event)
+      logger.debug(s"Queuing update: $pulse")
       RouteCreator.offer(client, queue, pulse)
     }
   }
@@ -89,6 +111,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
                                 queue: SourceQueueWithComplete[ws.Message]) = {
     val currentValues = engine.askCurrentValues()
     val initials      = currentValues(exitData.behavior)
+    logger.debug(s"Queuing reset: $initials")
     RouteCreator.offer(client, queue, initials)
   }
 
@@ -108,8 +131,10 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
 
   private[this] val inputRouter = rgs.inputEventRouter
 
-  def notify(change: ClientChange) =
+  def notify(change: ClientChange) = {
+    logger.debug(s"Firing clientChange: $change")
     engine.fire(Seq(AppEvent.clientChangesSource -> change))
+  }
   def notifyClientHasConnected(client: Client)    = notify(Connected(client))
   def notifyClientHasDisconnected(client: Client) = notify(Disconnected(client))
 }

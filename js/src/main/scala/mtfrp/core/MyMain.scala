@@ -3,14 +3,13 @@ package mtfrp.core
 import hokko.core.Engine
 import hokko.{core => HC}
 import org.scalajs.dom
-import slogging.LazyLogging
+import slogging.StrictLogging
 import snabbdom.VNode
 
-import scala.language.reflectiveCalls
 import scala.scalajs.js
-import scalatags.hokko.{Builder, DomPatcher}
+import scalatags.hokko.DomPatcher
 
-trait MyMain extends js.JSApp with FrpMain with LazyLogging {
+trait MyMain extends js.JSApp with FrpMain with StrictLogging {
 
   def main(): Unit = {
     setup

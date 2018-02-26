@@ -23,6 +23,27 @@ trait IBehavior[T <: Tier, A, DeltaA] {
 }
 
 object IBehavior {
+
+  /**
+    *
+    * Transform a Map Client function to a normal function, a fresh client is
+    * generated to perform the operation. THIS DISCARDS ALL CLIENT SPECIFIC
+    * OPERATIONS IN THE ORIGINAL FUNCTION F.
+    * @param f
+    * @tparam X
+    * @tparam Y
+    * @return
+    */
+  private[core] def transformFromMap[X, Y](
+      f: (Map[Client, X], Map[Client, Y]) => Map[Client, X]): (X, Y) => X = {
+    (x, y) =>
+      val c       = ClientGenerator.fresh
+      val xMap    = Map(c -> x)
+      val yMap    = Map(c -> y)
+      val resultF = f(xMap, yMap)
+      resultF(c)
+  }
+
   private[core] def transformToNormal[X, Y](
       f: (Client => X, Client => Option[Y]) => (Client => X)
   ): (X, Y) => X = { (x, y) =>
@@ -54,9 +75,8 @@ trait IBehaviorObject[SubT <: Tier { type T = SubT }]
   implicit val mtfrpIBehaviorInstances
     : tc.Snapshottable[IBehaviorA, SubT#Event] =
     new tc.Snapshottable[IBehaviorA, SubT#Event] {
-      override def snapshotWith[A, B, C](
-          b: IBehaviorA[A],
-          ev: SubT#Event[B])(f: (A, B) => C): SubT#Event[C] =
+      override def snapshotWith[A, B, C](b: IBehaviorA[A], ev: SubT#Event[B])(
+          f: (A, B) => C): SubT#Event[C] =
         b.snapshotWith(ev)(f)
     }
 }

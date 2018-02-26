@@ -1,12 +1,13 @@
 package mtfrp.core
 
 trait AppDBehaviorObject {
-  def toSession[A](
-      appBehavior: AppDBehavior[A]): SessionDBehavior[A] =
-    new SessionDBehavior(appBehavior.map { v =>_: Client =>
-      v
-    })
+  def toSession[A](appBehavior: AppDBehavior[A]): SessionDBehavior[A] = {
 
-  val clients: AppDBehavior[Set[Client]] =
-    AppIBehavior.clients.toDBehavior
+    val appClientsToA = AppDBehavior.clients.map2(appBehavior) { (clients, a) =>
+      clients.map(c => c -> a).toMap
+    }
+    new SessionDBehavior(appClientsToA)
+  }
+
+  val clients: AppDBehavior[Set[Client]] = AppIBehavior.clients.toDBehavior
 }

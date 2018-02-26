@@ -34,7 +34,8 @@ class ReplicationGraphClientTest extends WordSpec {
         new AppIBehavior[Client => Int, Client => Option[Int]](
           ReplicationGraph.start,
           null,
-          _ => 0))
+          _ => 0),
+        0)
 
     "build an input event router that deals with events, behavior deltas and behavior resets" in {
       HasToken.reset()

@@ -5,7 +5,6 @@ import akka.http.scaladsl.model.ws
 import akka.http.scaladsl.testkit.{ScalatestRouteTest, WSProbe}
 import akka.stream._
 import akka.stream.scaladsl._
-import hokko.{core => HC}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.{AsyncWordSpec, Matchers}
@@ -44,7 +43,7 @@ class RouteCreatorTest
         .map(l => l.map(d => Message(1, d.asJson)))
         .toList
 
-      var buffer = ListBuffer.empty[List[Message]]
+      val buffer = ListBuffer.empty[List[Message]]
       val sink: Sink[ws.Message, Future[Done]] =
         RouteCreator.buildInputSinkGeneric { data =>
           buffer += data.toList
