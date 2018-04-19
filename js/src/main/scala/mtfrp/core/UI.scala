@@ -1,11 +1,12 @@
 package mtfrp.core
 
-import scala.scalajs.js
 import scalatags.hokko.Builder
+
+import scala.scalajs.js
 
 object UI {
   val html = scalatags.Hokko
-  type HTML = html.Tag
+  type HTML = html.all.Frag
 
   import html.all._
 

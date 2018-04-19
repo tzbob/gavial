@@ -5,7 +5,12 @@ import io.circe._
 trait ClientEventObject {
   def toSession[A: Decoder: Encoder](
       clientEv: ClientEvent[A]): SessionEvent[A] =
-    new SessionEvent(ClientEvent.toApp(clientEv).map {
+    new SessionEvent(ClientEvent.toAppWithClient(clientEv).map {
       case (c, a) => Map(c -> a)
     })
+
+  def toApp[A: Decoder: Encoder](clientEv: ClientEvent[A]): AppEvent[A] =
+    ClientEvent.toAppWithClient(clientEv).map {
+      case (_, a) => a
+    }
 }

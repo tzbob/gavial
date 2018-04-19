@@ -4,11 +4,11 @@ import hokko.{core => HC}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalajs.dom.WebSocket
-import slogging.StrictLogging
+import slogging.LazyLogging
 
 class EventSender(rgc: ReplicationGraphClient,
                   engine: HC.Engine,
-                  ws: WebSocket) extends StrictLogging {
+                  ws: WebSocket) extends LazyLogging {
   def start(): Unit = {
     require(ws.readyState == WebSocket.OPEN)
     engine.subscribeForPulses { pulses =>

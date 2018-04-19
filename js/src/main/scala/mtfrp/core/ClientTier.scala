@@ -18,7 +18,7 @@ object ClientEvent extends HokkoEventObject with ClientEventObject {
   def source[A]: ClientEventSource[A] =
     new ClientEventSource(core.Event.source[A], ReplicationGraph.start)
 
-  private[core] def toApp[A: Decoder: Encoder](
+  private[core] def toAppWithClient[A: Decoder: Encoder](
       clientEv: ClientEvent[A]): AppEvent[(Client, A)] = {
     val mockBuilder = implicitly[MockBuilder[AppTier]]
     val newGraph =
@@ -79,5 +79,7 @@ object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
     mockBuilder.IBehavior(newGraph, transformed, defaultValue)
   }
 }
+
+object ClientAsync extends HokkoAsync[ClientTier]
 
 final class ClientTier extends HokkoTier with ClientTierLike

@@ -3,8 +3,8 @@ resolvers in ThisBuild += "Sonatype OSS Snapshots" at
 
 organization in ThisBuild := "be.tzbob"
 scalaVersion in ThisBuild := "2.12.4"
-crossScalaVersions in ThisBuild := Seq("2.11.8", "2.12.4")
-version in ThisBuild := "0.3.2-SNAPSHOT"
+crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.4")
+version in ThisBuild := "0.3.8-SNAPSHOT"
 
 scalacOptions in ThisBuild ++= Seq(
   "-encoding",
@@ -26,11 +26,12 @@ lazy val multitier = crossProject
     name := "kooi",
     addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4"),
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats"      % "0.9.0",
-      "biz.enef"      %%% "slogging"  % "0.5.3",
-      "be.tzbob"      %%% "hokko"     % "0.4.7-SNAPSHOT",
-      "com.lihaoyi"   %%% "scalatags" % "0.6.3",
-      "org.scalatest" %%% "scalatest" % "3.0.1" % "test"
+      "org.typelevel" %%% "cats-core"   % "1.0.1",
+      "biz.enef"      %%% "slogging"    % "0.5.3",
+      "be.tzbob"      %%% "hokko"       % "0.4.8-SNAPSHOT",
+      "com.lihaoyi"   %%% "scalatags"   % "0.6.3",
+      "org.typelevel" %%% "cats-effect" % "0.9",
+      "org.scalatest" %%% "scalatest"   % "3.0.1" % "test"
     ) ++ Seq(
       "io.circe" %%% "circe-core",
       "io.circe" %%% "circe-generic",
@@ -51,11 +52,25 @@ lazy val multitier = crossProject
     jsDependencies += RuntimeDOM,
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom"     % "0.9.1",
-      "be.tzbob"     %%% "scalatags-hokko" % "0.3.1-SNAPSHOT"
+      "be.tzbob"     %%% "scalatags-hokko" % "0.3.5-SNAPSHOT"
     )
   )
+
+lazy val macros = crossProject
+  .in(file("macros"))
+  .settings(
+    addCompilerPlugin(
+      "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+    libraryDependencies ++= Seq(
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value
+    )
+  )
+lazy val macrosJS  = macros.js
+lazy val macrosJVM = macros.jvm
 
 // Needed, so sbt finds the projects
 lazy val multitierJS = multitier.js
   .enablePlugins(ScalaJSBundlerPlugin)
-lazy val multitierJVM = multitier.jvm
+  .dependsOn(macrosJS)
+
+lazy val multitierJVM = multitier.jvm.dependsOn(macrosJVM)

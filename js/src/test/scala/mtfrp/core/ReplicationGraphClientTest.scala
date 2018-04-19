@@ -9,7 +9,7 @@ class ReplicationGraphClientTest extends WordSpec {
 
   def makeAppEvent: (HC.EventSource[Int], AppEvent[(Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> ClientEvent.toApp(ClientEvent(src))
+    src -> ClientEvent.toAppWithClient(ClientEvent(src))
   }
 
   def makeAppBehavior

@@ -2,11 +2,11 @@ package mtfrp.core
 
 import org.scalajs.dom
 import org.scalajs.dom.{MessageEvent, WebSocket}
-import slogging.StrictLogging
+import slogging.LazyLogging
 
 class WsEventListener(onOpen: WebSocket => Unit)
     extends EventListener
-    with StrictLogging {
+    with LazyLogging {
   private[this] var websocket: WebSocket = null
   def stop(): Unit =
     if (websocket != null) websocket.close()

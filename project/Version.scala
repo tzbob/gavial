@@ -1,3 +1,3 @@
 object Version {
-  val circe = "0.8.0"
+  val circe = "0.9.1"
 }

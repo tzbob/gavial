@@ -6,7 +6,7 @@ import io.circe.{Decoder, Encoder}
 import scala.collection.immutable.Map
 import cats.data._
 import cats.implicits._
-import slogging.StrictLogging
+import slogging.LazyLogging
 
 class SessionIBehavior[A, DeltaA] private[core] (
     private[core] val underlying: AppIBehavior[Map[Client, A],
@@ -89,7 +89,7 @@ class SessionIBehavior[A, DeltaA] private[core] (
 
 object SessionIBehavior
     extends IBehaviorObject[SessionTier]
-    with StrictLogging {
+    with LazyLogging {
   override def constant[A, B](x: A): SessionIBehavior[A, B] = {
     val underlying = AppIBehavior.clients.map { clients =>
       clients.map(_ -> x).toMap

@@ -3,61 +3,65 @@ package mtfrp.core
 import hokko.core.Engine
 import hokko.{core => HC}
 import org.scalajs.dom
-import slogging.StrictLogging
+import org.scalajs.dom.raw.Element
+import scalatags.hokko.DomPatcher
+import slogging.LazyLogging
 import snabbdom.VNode
 
 import scala.scalajs.js
-import scalatags.hokko.DomPatcher
 
-trait MyMain extends js.JSApp with FrpMain with StrictLogging {
+trait MyMain extends js.JSApp with FrpMain with LazyLogging {
 
   def main(): Unit = {
-    setup
-    ()
-  }
-
-  private[core] lazy val setup: Engine = {
     val clientId = ClientGenerator.static.id
 
-    val manager =
-      new EventManager(ui.graph, Seq(ui.rep.toCBehavior), Seq(ui.rep.changes))
+    val rep      = ui.rep
+    val behavior = rep.toCBehavior
+    val manager  = new EventManager(ui.graph, Seq(behavior), Seq(rep.changes))
+    val engine   = manager.engine
 
-    manager.start(s"/${Names.ws}/$clientId")
+    val values      = engine.askCurrentValues()
+    val initialVDom = values(behavior)
+    logger.debug(s"Initial VDOM: $initialVDom")
 
-    applyHtml(manager.engine, ui.rep)
-    manager.engine
-  }
-
-  def applyHtml(engine: Engine,
-                mainUi: HC.DBehavior[UI.HTML],
-                onLoading: Boolean = true): Unit = {
-    val initialVDom: Option[UI.HTML] =
-      engine.askCurrentValues()(mainUi.toCBehavior)
-
-    val domPatcherOpt =
-      initialVDom.map(v => new DomPatcher(v.render(engine)))
-
-    domPatcherOpt match {
-      case Some(domPatcher) =>
+    // Take the (optional) initial vdom to initiate the first patch of the DOM
+    initialVDom match {
+      case Some(vdom) =>
         def onLoad(x: Any) = {
           val el = dom.document.getElementById("mtfrpcontent")
 
-          while (el.hasChildNodes()) el.removeChild(el.lastChild)
-          el.appendChild(domPatcher.parent.firstElementChild)
+          val domPatcher: DomPatcher = initialRendering(engine, vdom, el)
+          patchDomOnChange(domPatcher, engine, rep.changes)
         }
-        if (onLoading)
-          dom.document.addEventListener("DOMContentLoaded", onLoad _)
-        else onLoad(null)
 
-        engine.subscribeForPulses { pulses =>
-          val newVDomOpt = pulses(mainUi.changes).map(_.render)
-          newVDomOpt.foreach { (newVDom: (Engine) => VNode) =>
-            domPatcher.applyNewState(newVDom(engine))
-          }
-        }
+        dom.document.addEventListener("DOMContentLoaded", onLoad _)
         ()
       case _ =>
-        logger.info(s"Could not create a DomPatcher, no value for: $mainUi")
+        logger.info(s"Could not create initial vdom, no value for: $behavior")
+    }
+
+    manager.start(s"/${Names.ws}/$clientId")
+  }
+
+  private def initialRendering(engine: Engine, vdom: UI.HTML, el: Element) = {
+    val node       = vdom.render(engine)
+    val domPatcher = new DomPatcher(node, Some(el))
+    logger.debug(s"Created DomPatcher $domPatcher to render $node on $el")
+
+    while (el.hasChildNodes()) el.removeChild(el.lastChild)
+    el.appendChild(domPatcher.parent.firstElementChild)
+    logger.debug(s"Attached ${domPatcher.parent} to $el")
+    domPatcher
+  }
+
+  private def patchDomOnChange(patcher: DomPatcher,
+                               engine: Engine,
+                               rep: HC.Event[UI.HTML]) = {
+    engine.subscribeForPulses { pulses =>
+      val newVDomOpt = pulses(rep).map(_.render)
+      newVDomOpt.foreach { (newVDom: (Engine) => VNode) =>
+        patcher.applyNewState(newVDom(engine))
+      }
     }
   }
 }

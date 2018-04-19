@@ -9,18 +9,18 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream._
 import akka.stream.scaladsl._
-import hokko.core.Engine.Subscription
+import hokko.core.Engine.{FireResult, Subscription}
 import hokko.{core => HC}
 import io.circe.generic.auto._
 import io.circe.syntax._
-import slogging.StrictLogging
+import slogging.LazyLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-object RouteCreator extends StrictLogging {
+object RouteCreator extends LazyLogging {
   def buildInputSinkGeneric(
       propagator: Seq[Message] => Unit): Sink[ws.Message, Future[Done]] = {
     Sink.foreach[ws.Message] {
@@ -51,11 +51,19 @@ object RouteCreator extends StrictLogging {
   }
 }
 
-class RouteCreator(graph: ReplicationGraph) extends StrictLogging {
+class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
 
   val engine: HC.Engine = HC.Engine.compile(exitData.event, exitData.behavior)
+
+  def throwAllErrors(futures: Seq[Future[FireResult]]): Unit =
+    futures.foreach {
+      _.onComplete {
+        case Failure(err)    => throw err
+        case Success(result) => throwAllErrors(result.futurePropagations)
+      }
+    }
 
   def buildInputSink(client: Client): Sink[ws.Message, Any] =
     RouteCreator
@@ -64,7 +72,7 @@ class RouteCreator(graph: ReplicationGraph) extends StrictLogging {
           inputRouter(client, msg)
         }
         logger.debug(s"Firing pulses: $pulses")
-        engine.fire(pulses)
+        throwAllErrors(engine.fire(pulses).futurePropagations)
       }
       .mapMaterializedValue { fut =>
         fut.onComplete {

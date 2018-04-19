@@ -3,9 +3,9 @@ package core
 
 import hokko.core
 import io.circe._
-import mtfrp.core.impl.HokkoBuilder
+import mtfrp.core.impl.{HokkoAsync, HokkoBuilder}
 import mtfrp.core.mock._
-import slogging.StrictLogging
+import slogging.LazyLogging
 
 // Define all App types
 // Create all App constructors
@@ -47,7 +47,7 @@ class AppIBehavior[A, DeltaA] private[core] (
 object AppIBehavior
     extends MockIBehaviorObject[AppTier]
     with AppIBehaviorObject
-    with StrictLogging {
+    with LazyLogging {
 
   def toClient[A, DeltaA](
       appBeh: AppIBehavior[Client => A, Client => Option[DeltaA]],
@@ -86,5 +86,7 @@ object AppIBehavior
                            transformedAccumulator)
   }
 }
+
+object AppAsync extends MockAsync[AppTier]
 
 final class AppTier extends MockTier with AppTierLike
