@@ -92,10 +92,9 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
       .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
                  () => TextMessage.Strict("hb"))
       .watchTermination() { (queue, done) =>
-        notifyClientHasConnected(client)
-
-        queueResets(client, queue)
         val subscription = queueUpdates(client, queue)
+        queueResets(client, queue)
+        notifyClientHasConnected(client)
 
         done.onComplete { _ =>
           logger.debug(s"Output for Websocket is closed")
