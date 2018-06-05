@@ -45,8 +45,6 @@ class XhrRouteCreatorTest extends WordSpec with ScalatestRouteTest {
 
       val creator = new XhrRouteCreator(clientBehavior.graph)
 
-      assert(!clientBehavior.requiresWebSockets)
-
       val messages = List(Message(1, "1".asJson)).asJson.noSpaces
       val client   = ClientGenerator.static
 

@@ -21,7 +21,7 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 lazy val multitier = crossProject
-  .in(file("."))
+  .in(file("multitier"))
   .settings(
     name := "kooi",
     addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4"),
@@ -48,6 +48,7 @@ lazy val multitier = crossProject
   )
   .jsSettings(
     requiresDOM in Test := true,
+    webpackBundlingMode in Test := BundlingMode.LibraryAndApplication(),
     npmDependencies in Test += "event-source-polyfill" -> "0.0.9",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom"     % "0.9.1",

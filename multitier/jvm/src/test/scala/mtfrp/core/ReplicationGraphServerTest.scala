@@ -10,13 +10,13 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
   def makeClientEvent
     : (HC.EventSource[Client => Option[Int]], ClientEvent[Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> AppEvent.toClient(AppEvent(src))
+    src -> AppEvent.toClient(AppEvent(src, true))
   }
 
   def makeClientBehavior
     : (HC.EventSource[Client => Option[Int]], ClientIBehavior[Int, Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> makeCountingBehavior(AppEvent(src))
+    src -> makeCountingBehavior(AppEvent(src, true))
   }
 
   def makeCountingBehavior(
