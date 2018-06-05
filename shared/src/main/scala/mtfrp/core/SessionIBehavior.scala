@@ -11,14 +11,17 @@ import slogging.LazyLogging
 class SessionIBehavior[A, DeltaA] private[core] (
     private[core] val underlying: AppIBehavior[Map[Client, A],
                                                Map[Client, DeltaA]],
-    private[core] val initial: A
+    private[core] val initial: A,
+    private[core] val requiresWebSockets: Boolean
 ) extends IBehavior[SessionTier, A, DeltaA] {
   private[core] def accumulator: (A, DeltaA) => A =
     IBehavior.transformFromMap(underlying.accumulator)
 
-  def changes: SessionTier#Event[A] = new SessionEvent(underlying.changes)
+  def changes: SessionTier#Event[A] =
+    new SessionEvent(underlying.changes, this.requiresWebSockets)
 
-  def deltas: SessionTier#Event[DeltaA] = new SessionEvent(underlying.deltas)
+  def deltas: SessionTier#Event[DeltaA] =
+    new SessionEvent(underlying.deltas, this.requiresWebSockets)
 
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
       accumulator: (B, DeltaB) => B): SessionTier#IBehavior[B, DeltaB] = {
@@ -33,7 +36,7 @@ class SessionIBehavior[A, DeltaA] private[core] (
         accF ++ accumulated
       }
 
-    new SessionIBehavior(newUnderlying, fa(initial))
+    new SessionIBehavior(newUnderlying, fa(initial), this.requiresWebSockets)
   }
 
   def map2[B, DeltaB, C, DeltaC](b: SessionTier#IBehavior[B, DeltaB])(
@@ -72,24 +75,22 @@ class SessionIBehavior[A, DeltaA] private[core] (
         cMap.map2(deltaCMap)(foldFun)
       }
 
-    new SessionIBehavior(newUnderlying, valueFun(this.initial, b.initial))
+    new SessionIBehavior(newUnderlying,
+                         valueFun(this.initial, b.initial),
+                         this.requiresWebSockets || b.requiresWebSockets)
   }
 
   def snapshotWith[B, C](ev: SessionTier#Event[B])(
       f: (A, B) => C): SessionTier#Event[C] =
-    new SessionEvent(
-      underlying.snapshotWith(ev.underlying) { (aMap, bMap) =>
-        aMap.map2(bMap)(f)
-      }
-    )
+    new SessionEvent(underlying.snapshotWith(ev.underlying) { (aMap, bMap) =>
+      aMap.map2(bMap)(f)
+    }, ev.requiresWebSockets)
 
   def toDBehavior: SessionTier#DBehavior[A] =
-    new SessionDBehavior(underlying.toDBehavior)
+    new SessionDBehavior(underlying.toDBehavior, this.requiresWebSockets)
 }
 
-object SessionIBehavior
-    extends IBehaviorObject[SessionTier]
-    with LazyLogging {
+object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
   override def constant[A, B](x: A): SessionIBehavior[A, B] = {
     val underlying = AppIBehavior.clients.map { clients =>
       clients.map(_ -> x).toMap
@@ -100,7 +101,7 @@ object SessionIBehavior
     } { (cMap, _) =>
       cMap
     }
-    new SessionIBehavior(underlying, x)
+    new SessionIBehavior(underlying, x, false)
   }
 
   def toApp[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])

@@ -16,6 +16,9 @@ project/plugins/project/
 .scala_dependencies
 .worksheet
 
+# nodejs
+node_modules
+
 # Ensime specific
 .ensime
 .ensime_cache

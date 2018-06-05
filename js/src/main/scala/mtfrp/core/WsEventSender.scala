@@ -6,9 +6,9 @@ import io.circe.syntax._
 import org.scalajs.dom.WebSocket
 import slogging.LazyLogging
 
-class EventSender(rgc: ReplicationGraphClient,
-                  engine: HC.Engine,
-                  ws: WebSocket) extends LazyLogging {
+class WsEventSender(rgc: ReplicationGraphClient,
+                    engine: HC.Engine,
+                    ws: WebSocket) extends LazyLogging {
   def start(): Unit = {
     require(ws.readyState == WebSocket.OPEN)
     engine.subscribeForPulses { pulses =>

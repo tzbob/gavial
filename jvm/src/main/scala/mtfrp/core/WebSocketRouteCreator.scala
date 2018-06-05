@@ -20,7 +20,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-object RouteCreator extends LazyLogging {
+object WebSocketRouteCreator extends LazyLogging {
   def buildInputSinkGeneric(
       propagator: Seq[Message] => Unit): Sink[ws.Message, Future[Done]] = {
     Sink.foreach[ws.Message] {
@@ -51,7 +51,7 @@ object RouteCreator extends LazyLogging {
   }
 }
 
-class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
+class WebSocketRouteCreator(graph: ReplicationGraph) extends LazyLogging {
   private[this] val rgs      = new ReplicationGraphServer(graph)
   private[this] val exitData = rgs.exitData
 
@@ -66,7 +66,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
     }
 
   def buildInputSink(client: Client): Sink[ws.Message, Any] =
-    RouteCreator
+    WebSocketRouteCreator
       .buildInputSinkGeneric { messages =>
         val pulses = messages.flatMap { msg =>
           inputRouter(client, msg)
@@ -110,7 +110,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
     engine.subscribeForPulses { pulses =>
       val pulse = pulses(exitData.event)
       logger.debug(s"Queuing update: $pulse")
-      RouteCreator.offer(client, queue, pulse)
+      WebSocketRouteCreator.offer(client, queue, pulse)
     }
   }
 
@@ -119,7 +119,7 @@ class RouteCreator(graph: ReplicationGraph) extends LazyLogging {
     val currentValues = engine.askCurrentValues()
     val initials      = currentValues(exitData.behavior)
     logger.debug(s"Queuing reset: $initials")
-    RouteCreator.offer(client, queue, initials)
+    WebSocketRouteCreator.offer(client, queue, initials)
   }
 
   def buildRoute(flow: Client => Flow[ws.Message, ws.Message, Any]): Route =

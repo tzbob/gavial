@@ -6,6 +6,8 @@ import hokko.{core => HC}
 import hokko.core.tc
 
 trait Event[T <: Tier, A] {
+  private[core] val requiresWebSockets: Boolean
+
   private[core] val graph: ReplicationGraph
 
   def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A]
@@ -19,10 +21,10 @@ trait EventObject[SubT <: Tier { type T = SubT }]
     extends hokko.syntax.EventSyntax[SubT#Event, SubT#IBehavior]
     with FunctorSyntax {
   def empty[A]: SubT#Event[A]
-  private[core] def apply[A](ev: HC.Event[A]): SubT#Event[A]
+  private[core] def apply[A](ev: HC.Event[A],
+                             requiresWebSocket: Boolean): SubT#Event[A]
 
-  implicit val mtfrpEventInstances
-    : tc.Event[SubT#Event, SubT#IBehavior] =
+  implicit val mtfrpEventInstances: tc.Event[SubT#Event, SubT#IBehavior] =
     new tc.Event[SubT#Event, SubT#IBehavior] {
       override def fold[A, DeltaA](ev: SubT#Event[DeltaA], initial: A)(
           f: (A, DeltaA) => A): SubT#IBehavior[A, DeltaA] =

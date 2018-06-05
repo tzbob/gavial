@@ -10,8 +10,9 @@ import slogging.LazyLogging
 // Define all App types
 // Create all App constructors
 
-class AppEvent[A] private[core] (graph: ReplicationGraph)
-    extends MockEvent[AppTier, A](graph)
+class AppEvent[A] private[core] (graph: ReplicationGraph,
+                                 requiresWebSockets: Boolean)
+    extends MockEvent[AppTier, A](graph, requiresWebSockets)
 
 object AppEvent extends MockEventObject with AppEventObject {
   private[core] def toClient[A](appEv: AppEvent[Client => Option[A]])(
@@ -19,30 +20,38 @@ object AppEvent extends MockEventObject with AppEventObject {
       ea: Encoder[A]): ClientEvent[A] = {
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
     val newGraph     = ReplicationGraphClient.ReceiverEvent(appEv.graph)
-    hokkoBuilder.event(newGraph.source, newGraph)
+    hokkoBuilder.event(newGraph.source, newGraph, true)
   }
 
-  val clientChanges: AppEvent[ClientChange] = new AppEvent(
-    ReplicationGraph.start)
+  val start: AppEvent[ClientChange] =
+    new AppEvent(ReplicationGraph.start, false)
+  val clientChanges: AppEvent[ClientChange] =
+    new AppEvent(ReplicationGraph.start, true)
 }
 
-class AppBehavior[A] private[core] (graph: ReplicationGraph)
-    extends MockBehavior[AppTier, A](graph)
+class AppBehavior[A] private[core] (graph: ReplicationGraph,
+                                    requiresWebSockets: Boolean)
+    extends MockBehavior[AppTier, A](graph, requiresWebSockets)
 
 object AppBehavior extends MockBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDBehavior[A] private[core] (
     graph: ReplicationGraph,
-    initial: A
-) extends MockDBehavior[AppTier, A](graph, initial)
+    initial: A,
+    requiresWebSockets: Boolean
+) extends MockDBehavior[AppTier, A](graph, initial, requiresWebSockets)
 
 object AppDBehavior extends MockDBehaviorObject[AppTier] with AppDBehaviorObject
 
 class AppIBehavior[A, DeltaA] private[core] (
     graph: ReplicationGraph,
     accumulator: (A, DeltaA) => A,
-    initial: A
-) extends MockIBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
+    initial: A,
+    requiresWebSockets: Boolean
+) extends MockIBehavior[AppTier, A, DeltaA](graph,
+                                              accumulator,
+                                              initial,
+                                              requiresWebSockets)
 
 object AppIBehavior
     extends MockIBehaviorObject[AppTier]
@@ -83,7 +92,8 @@ object AppIBehavior
     hokkoBuilder.IBehavior(replicatedBehavior,
                            init,
                            newGraph,
-                           transformedAccumulator)
+                           transformedAccumulator,
+                           true)
   }
 }
 

@@ -19,7 +19,6 @@ object Replicator {
       ReplicationGraphServer.SenderBehavior(state.rep,
                                             deltas.rep,
                                             state.graph + deltas.graph)
-    mockBuilder
-      .IBehavior(newGraph, accumulator, init)
+    mockBuilder.IBehavior(newGraph, accumulator, init, true)
   }
 }

@@ -10,25 +10,9 @@ class EventReceiver(rgc: ReplicationGraphClient,
                     engine: HC.Engine,
                     listener: EventListener)
     extends LazyLogging {
-  private[this] val pulseMakers = rgc.inputEventRouter
-
-  def decodeAsPulses(
-      messages: String): Either[Error, List[ReplicationGraph.Pulse]] = {
-    val messageXor = decode[List[Message]](messages)
-    messageXor.right.map { messages =>
-      val maybePulses = messages.map { message =>
-        val maybePulse = pulseMakers(message)
-        if (maybePulse.isEmpty)
-          logger.info(s"Pulse not created for msg: $message")
-        maybePulse
-      }
-      maybePulses.flatten
-    }
-  }
-
   def restart(url: String): Unit = {
     val decodeAndFire = { (str: String) =>
-      val decoded = decodeAsPulses(str)
+      val decoded = EventReceiver.decodeAsPulses(rgc, str)
       decoded match {
         case Right(pulses) =>
           logger.debug(s"Firing pulses: $pulses")
@@ -40,5 +24,23 @@ class EventReceiver(rgc: ReplicationGraphClient,
     }
 
     listener.restart(url, decodeAndFire)
+  }
+}
+
+object EventReceiver extends LazyLogging {
+  def decodeAsPulses(
+      rgc: ReplicationGraphClient,
+      messages: String): Either[Error, List[ReplicationGraph.Pulse]] = {
+    val pulseMakers = rgc.inputEventRouter
+    val messageXor  = decode[List[Message]](messages)
+    messageXor.right.map { messages =>
+      val maybePulses = messages.map { message =>
+        val maybePulse = pulseMakers(message)
+        if (maybePulse.isEmpty)
+          logger.info(s"Pulse not created for msg: $message")
+        maybePulse
+      }
+      maybePulses.flatten
+    }
   }
 }

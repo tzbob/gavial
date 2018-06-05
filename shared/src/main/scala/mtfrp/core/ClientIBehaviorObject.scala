@@ -13,6 +13,6 @@ trait ClientIBehaviorObject {
         aMap ++ aMap.map2(deltaMap)(clientBeh.accumulator)
       }
 
-    new SessionIBehavior(ib, clientBeh.initial)
+    new SessionIBehavior(ib, clientBeh.initial, clientBeh.requiresWebSockets)
   }
 }

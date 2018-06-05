@@ -13,15 +13,20 @@ import scala.scalajs.js
 trait MyMain extends js.JSApp with FrpMain with LazyLogging {
 
   def main(): Unit = {
-    val clientId = ClientGenerator.static.id
-
     val rep      = ui.rep
     val behavior = rep.toCBehavior
-    val manager  = new EventManager(ui.graph, Seq(behavior), Seq(rep.changes))
-    val engine   = manager.engine
+    val manager = new EventManager(ui.requiresWebSockets,
+                                   ui.graph,
+                                   Seq(behavior),
+                                   Seq(rep.changes))
+    val engine = manager.engine
+    applyHtml(engine, rep)
+    manager.start()
+  }
 
+  def applyHtml(engine: Engine, behavior: HC.DBehavior[UI.HTML]): Unit = {
     val values      = engine.askCurrentValues()
-    val initialVDom = values(behavior)
+    val initialVDom = values(behavior.toCBehavior)
     logger.debug(s"Initial VDOM: $initialVDom")
 
     // Take the (optional) initial vdom to initiate the first patch of the DOM
@@ -31,7 +36,7 @@ trait MyMain extends js.JSApp with FrpMain with LazyLogging {
           val el = dom.document.getElementById("mtfrpcontent")
 
           val domPatcher: DomPatcher = initialRendering(engine, vdom, el)
-          patchDomOnChange(domPatcher, engine, rep.changes)
+          patchDomOnChange(domPatcher, engine, behavior.changes)
         }
 
         dom.document.addEventListener("DOMContentLoaded", onLoad _)
@@ -39,8 +44,6 @@ trait MyMain extends js.JSApp with FrpMain with LazyLogging {
       case _ =>
         logger.info(s"Could not create initial vdom, no value for: $behavior")
     }
-
-    manager.start(s"/${Names.ws}/$clientId")
   }
 
   private def initialRendering(engine: Engine, vdom: UI.HTML, el: Element) = {

@@ -11,8 +11,9 @@ import mtfrp.core.mock.MockBuilder
 
 class AppEvent[A] private[core] (
     rep: core.Event[A],
-    graph: ReplicationGraph
-) extends HokkoEvent[AppTier, A](rep, graph)
+    graph: ReplicationGraph,
+    requiresWebSockets: Boolean
+) extends HokkoEvent[AppTier, A](rep, graph, requiresWebSockets)
 
 object AppEvent extends HokkoEventObject with AppEventObject {
   private[core] def toClient[A](appEv: AppEvent[Client => Option[A]])(
@@ -20,26 +21,31 @@ object AppEvent extends HokkoEventObject with AppEventObject {
       ea: Encoder[A]): ClientEvent[A] = {
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
     val newGraph    = ReplicationGraphServer.SenderEvent(appEv.rep, appEv.graph)
-    mockBuilder.event(newGraph)
+    mockBuilder.event(newGraph, true)
   }
 
+  private[core] val serverStart = core.Event.source[Unit]
+  val start: AppEvent[Unit] =
+    new AppEvent(serverStart, ReplicationGraph.start, false)
   private[core] val clientChangesSource = core.Event.source[ClientChange]
   val clientChanges: AppEvent[ClientChange] =
-    new AppEvent(clientChangesSource, ReplicationGraph.start)
+    new AppEvent(clientChangesSource, ReplicationGraph.start, true)
 }
 
 class AppBehavior[A] private[core] (
     rep: core.CBehavior[A],
-    graph: ReplicationGraph
-) extends HokkoBehavior[AppTier, A](rep, graph)
+    graph: ReplicationGraph,
+    requiresWebSockets: Boolean
+) extends HokkoBehavior[AppTier, A](rep, graph, requiresWebSockets)
 
 object AppBehavior extends HokkoBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDBehavior[A] private[core] (
     rep: core.DBehavior[A],
     initial: A,
-    graph: ReplicationGraph
-) extends HokkoDBehavior[AppTier, A](rep, initial, graph)
+    graph: ReplicationGraph,
+    requiresWebSockets: Boolean
+) extends HokkoDBehavior[AppTier, A](rep, initial, graph, requiresWebSockets)
 
 object AppDBehavior
     extends HokkoDBehaviorObject[AppTier]
@@ -49,8 +55,13 @@ class AppIBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
     initial: A,
     graph: ReplicationGraph,
-    accumulator: (A, DeltaA) => A
-) extends HokkoIBehavior[AppTier, A, DeltaA](rep, initial, graph, accumulator)
+    accumulator: (A, DeltaA) => A,
+    requiresWebSockets: Boolean
+) extends HokkoIBehavior[AppTier, A, DeltaA](rep,
+                                               initial,
+                                               graph,
+                                               accumulator,
+                                               requiresWebSockets)
 
 object AppIBehavior
     extends HokkoIBehaviorObject[AppTier]

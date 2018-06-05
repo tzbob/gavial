@@ -4,22 +4,25 @@ import mtfrp.core._
 
 class MockDBehavior[T <: MockTier: MockBuilder, A](
     private[core] val graph: ReplicationGraph,
-    private[core] val initial: A
+    private[core] val initial: A,
+    private[core] val requiresWebSockets: Boolean
 ) extends DBehavior[T, A] {
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
   def changes(): T#Event[A] =
-    mockBuilder.event(graph)
+    mockBuilder.event(graph, requiresWebSockets)
 
   def reverseApply[B](fb: T#DBehavior[A => B]): T#DBehavior[B] =
-    mockBuilder.DBehavior(graph + fb.graph, fb.initial(initial))
+    mockBuilder.DBehavior(graph + fb.graph,
+                          fb.initial(initial),
+                          requiresWebSockets || fb.requiresWebSockets)
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    mockBuilder.event(graph + ev.graph)
+    mockBuilder.event(graph + ev.graph, ev.requiresWebSockets)
 
   def toBehavior: T#Behavior[A] =
-    mockBuilder.behavior(graph)
+    mockBuilder.behavior(graph, requiresWebSockets)
 }
 
 abstract class MockDBehaviorObject[
@@ -28,5 +31,5 @@ abstract class MockDBehaviorObject[
   private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
 
   def constant[A](x: A): SubT#DBehavior[A] =
-    mockBuilder.DBehavior(ReplicationGraph.start, x)
+    mockBuilder.DBehavior(ReplicationGraph.start, x, false)
 }

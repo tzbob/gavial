@@ -5,6 +5,8 @@ import org.scalajs.dom
 import org.scalajs.dom.raw.HTMLButtonElement
 import org.scalatest.{Matchers, WordSpec}
 
+import scala.scalajs.js
+
 class ScalaTagsTest extends WordSpec with Matchers {
 
   "UI in Main" should {
@@ -14,13 +16,16 @@ class ScalaTagsTest extends WordSpec with Matchers {
       container.setAttribute("id", "mtfrpcontent")
       dom.document.body.appendChild(container)
 
+      assert(dom.document.getElementById("mtfrpcontent") !== null)
+      assert(dom.document.getElementById("mtfrpcontent") !== js.undefined)
+
       val ui          = main.ui
       val clientGraph = new ReplicationGraphClient(ui.graph)
       val engine = Engine.compile(clientGraph.exitEvent,
                                   ui.rep,
                                   ui.rep.toCBehavior,
                                   ui.rep.changes)
-      main.applyHtml(engine, ui.rep, false)
+      main.applyHtml(engine, ui.rep)
       engine
     }
 

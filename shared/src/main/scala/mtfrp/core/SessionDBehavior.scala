@@ -1,13 +1,14 @@
 package mtfrp.core
 
 class SessionDBehavior[A] private[core] (
-    val underlying: AppDBehavior[Map[Client, A]]
+    private[core] val underlying: AppDBehavior[Map[Client, A]],
+    private[core] val requiresWebSockets: Boolean
 ) extends DBehavior[SessionTier, A] {
   override def changes(): SessionEvent[A] =
-    new SessionEvent(underlying.changes)
+    new SessionEvent(underlying.changes, this.requiresWebSockets)
 
   override def toBehavior: SessionTier#Behavior[A] =
-    new SessionBehavior(underlying.toBehavior)
+    new SessionBehavior(underlying.toBehavior, this.requiresWebSockets)
 
   override def reverseApply[B](
       fb: SessionTier#DBehavior[A => B]): SessionTier#DBehavior[B] = {
@@ -22,7 +23,8 @@ class SessionDBehavior[A] private[core] (
       }
 
     val revApped = underlying.reverseApply(mapFb)
-    new SessionDBehavior(revApped)
+    new SessionDBehavior(revApped,
+                         this.requiresWebSockets || fb.requiresWebSockets)
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
@@ -34,7 +36,7 @@ class SessionDBehavior[A] private[core] (
           client -> f(cfA(client), cfB(client))
         }.toMap
     }
-    new SessionEvent(newUnder)
+    new SessionEvent(newUnder, ev.requiresWebSockets)
   }
 }
 
@@ -43,7 +45,7 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
     val clientMap = AppDBehavior.clients.map { clients =>
       clients.map(_ -> x).toMap
     }
-    new SessionDBehavior(clientMap)
+    new SessionDBehavior(clientMap, false)
   }
 
   def toApp[A](sb: SessionDBehavior[A]): AppDBehavior[Map[Client, A]] =

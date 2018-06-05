@@ -6,6 +6,6 @@ trait AppEventObject {
       (clients, event) =>
         clients.map(c => c -> event).toMap
     }
-    new SessionEvent(appEvBroadcast)
+    new SessionEvent(appEvBroadcast, true)
   }
 }

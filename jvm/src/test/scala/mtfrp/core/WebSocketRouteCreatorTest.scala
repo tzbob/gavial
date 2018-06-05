@@ -12,15 +12,15 @@ import org.scalatest.{AsyncWordSpec, Matchers}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-class RouteCreatorTest
+class WebSocketRouteCreatorTest
     extends AsyncWordSpec
     with Matchers
     with ScalatestRouteTest {
 
-  "RouteCreator" must {
+  "WebSocketRouteCreator" must {
 
     "form proper clients on /events/{uuid}" in {
-      val rc      = new RouteCreator(ReplicationGraph.start)
+      val rc      = new WebSocketRouteCreator(ReplicationGraph.start)
       val client0 = ClientGenerator.fresh
 
       val route = rc.buildRoute { cid =>
@@ -45,7 +45,7 @@ class RouteCreatorTest
 
       val buffer = ListBuffer.empty[List[Message]]
       val sink: Sink[ws.Message, Future[Done]] =
-        RouteCreator.buildInputSinkGeneric { data =>
+        WebSocketRouteCreator.buildInputSinkGeneric { data =>
           buffer += data.toList
           ()
         }
@@ -64,7 +64,7 @@ class RouteCreatorTest
       val messages = Seq(Message(1, 20.asJson))
 
       val offeredSrc = source.mapMaterializedValue { q =>
-        RouteCreator.offer(client, q, Some(Map(client -> messages)))
+        WebSocketRouteCreator.offer(client, q, Some(Map(client -> messages)))
       }
 
       val expected = ws.TextMessage.Strict(messages.asJson.noSpaces)

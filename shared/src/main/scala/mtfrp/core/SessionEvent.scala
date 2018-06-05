@@ -4,8 +4,10 @@ import hokko.{core => HC}
 import io.circe._
 
 class SessionEvent[A] private[core] (
-    private[core] val underlying: AppEvent[Map[Client, A]]
+    private[core] val underlying: AppEvent[Map[Client, A]],
+    private[core] val requiresWebSockets: Boolean
 ) extends Event[SessionTier, A] {
+
   private[core] val graph: ReplicationGraph = underlying.graph
 
   def collect[B](fb: A => Option[B]): SessionTier#Event[B] = {
@@ -16,7 +18,7 @@ class SessionEvent[A] private[core] (
       if (filteredMap.isEmpty) None
       else Option(filteredMap.mapValues(_.get))
     }
-    new SessionEvent(newUnderlying)
+    new SessionEvent(newUnderlying, this.requiresWebSockets)
   }
 
   def fold[B](initial: B)(f: (B, A) => B): SessionTier#IBehavior[B, A] = {
@@ -27,7 +29,7 @@ class SessionEvent[A] private[core] (
           f)
     }
 
-    new SessionIBehavior(newRep, initial)
+    new SessionIBehavior(newRep, initial, this.requiresWebSockets)
   }
 
   def unionWith(b: SessionTier#Event[A])(
@@ -40,19 +42,22 @@ class SessionEvent[A] private[core] (
         leftMap ++ rightMap ++ commonMap
     }
 
-    new SessionEvent(newRep)
+    new SessionEvent(newRep, this.requiresWebSockets || b.requiresWebSockets)
   }
 }
 
 object SessionEvent extends EventObject[SessionTier] {
   override def empty[A]: SessionEvent[A] =
-    new SessionEvent(AppEvent.empty[Map[Client, A]])
-  override private[core] def apply[A](ev: HC.Event[A]): SessionEvent[A] = {
+    new SessionEvent(AppEvent.empty[Map[Client, A]], false)
+  override private[core] def apply[A](
+      ev: HC.Event[A],
+      requiresWebSockets: Boolean): SessionEvent[A] = {
     val appMap: AppEvent[Map[Client, A]] =
-      AppBehavior.clients.snapshotWith(AppEvent(ev)) { (clients, ev) =>
-        clients.map(_ -> ev).toMap
+      AppBehavior.clients.snapshotWith(AppEvent(ev, requiresWebSockets)) {
+        (clients, ev) =>
+          clients.map(_ -> ev).toMap
       }
-    new SessionEvent(appMap)
+    new SessionEvent(appMap, requiresWebSockets)
   }
 
   def toApp[A](sessionEvent: SessionEvent[A]): AppEvent[Map[Client, A]] = {

@@ -19,15 +19,26 @@ trait MyMain extends FrpMain {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
 
-    val routeCreator = new RouteCreator(ui.graph)
+    val (route, engine) = if (ui.requiresWebSockets) {
+      println("Application requires web sockets.")
+      val creator = new WebSocketRouteCreator(ui.graph)
+      (creator.route, creator.engine)
+    } else {
+      println("Application does not require web sockets, running on XHR.")
+      val creator = new XhrRouteCreator(ui.graph)
+      (creator.route, creator.engine)
+    }
 
     implicit val system       = ActorSystem("my-system")
     implicit val materializer = ActorMaterializer()
 
-    val totalRoute    = routeCreator.route ~ index ~ resourceRoute
+    val totalRoute = route ~ index ~ resourceRoute
 
     Http().bindAndHandle(totalRoute, "localhost", 8080)
     println(s"Server online at http://localhost:8080/")
+
+    engine.fire(Seq((AppEvent.serverStart, ())))
+
     Await.result(system.whenTerminated, Duration.Inf)
   }
 

@@ -7,6 +7,8 @@ import hokko.core.tc
 import hokko.syntax.SnapshottableSyntax
 
 trait Behavior[T <: Tier, A] {
+  private[core] val requiresWebSockets: Boolean
+
   def reverseApply[B](fb: T#Behavior[A => B]): T#Behavior[B]
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
 }

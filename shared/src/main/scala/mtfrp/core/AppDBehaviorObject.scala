@@ -6,7 +6,7 @@ trait AppDBehaviorObject {
     val appClientsToA = AppDBehavior.clients.map2(appBehavior) { (clients, a) =>
       clients.map(c => c -> a).toMap
     }
-    new SessionDBehavior(appClientsToA)
+    new SessionDBehavior(appClientsToA, true)
   }
 
   val clients: AppDBehavior[Set[Client]] = AppIBehavior.clients.toDBehavior

@@ -6,6 +6,8 @@ import hokko.syntax.SnapshottableSyntax
 import hokko.core.tc
 
 trait IBehavior[T <: Tier, A, DeltaA] {
+  private[core] val requiresWebSockets: Boolean
+
   private[core] def accumulator: (A, DeltaA) => A
 
   def changes: T#Event[A]

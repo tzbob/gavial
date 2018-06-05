@@ -35,15 +35,14 @@ class EventReceiverTest extends WordSpec with Matchers {
 
       val engine = HC.Engine.compile(exit.rep)
 
-      val rcv =
-        new EventReceiver(new ReplicationGraphClient(exit.graph), engine, null)
+      val rgc = new ReplicationGraphClient(exit.graph)
 
       val x        = Message.fromPayload(1)(999)
       val y        = Message.fromPayload(2)(777)
       val xs       = List(x, y, y, x, x)
       val messages = xs.asJson.noSpaces
 
-      val result = rcv.decodeAsPulses(messages).toOption.get
+      val result = EventReceiver.decodeAsPulses(rgc, messages).toOption.get
 
       assert(result.forall(x => x._2 == 999 || x._2 == 777))
       assert(result(0) == result(3))

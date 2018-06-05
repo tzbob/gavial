@@ -87,13 +87,13 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
     }
 
     def makeAppEvent: AppEvent[(Client, Int)] = {
-      val ev = new ClientEvent[Int](ReplicationGraph.start)
-      ClientEvent.toApp(ev)
+      val ev = new ClientEvent[Int](ReplicationGraph.start, true)
+      ClientEvent.toAppWithClient(ev)
     }
 
     def makeAppBehavior: AppIBehavior[Map[Client, Int], (Client, Int)] = {
       val ev =
-        new ClientIBehavior[Int, Int](ReplicationGraph.start, _ + _, 0)
+        new ClientIBehavior[Int, Int](ReplicationGraph.start, _ + _, 0, true)
       ClientIBehavior.toApp(ev)
     }
 
@@ -120,7 +120,8 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
     "not execute a fold multiple times for resets in Session.toClient" in {
       testDuplicateFolds { (src, eff) =>
         val event: SessionEvent[Int] =
-          new SessionEvent(new AppEvent(src, ReplicationGraph.start))
+          new SessionEvent(new AppEvent(src, ReplicationGraph.start, true),
+                           true)
 
         val behavior: SessionIBehavior[Int, Int] = event.fold(0) { (acc, n) =>
           eff()
@@ -133,7 +134,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
     "not execute a fold multiple times for resets in AppIBehavior.broadcast" in {
       testDuplicateFolds { (src, eff) =>
         val event: AppEvent[Map[Client, Int]] =
-          new AppEvent(src, ReplicationGraph.start)
+          new AppEvent(src, ReplicationGraph.start, true)
         val behavior: AppIBehavior[Int, Int] =
           event.map(_.values.head).fold(0) { (acc, n) =>
             eff()

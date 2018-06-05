@@ -37,6 +37,10 @@ object Replicator {
         accumulator(acc, n)
       }
 
-    hokkoBuilder.IBehavior(replicatedBehavior, init, newGraph, accumulator)
+    hokkoBuilder.IBehavior(replicatedBehavior,
+                           init,
+                           newGraph,
+                           accumulator,
+                           true)
   }
 }
