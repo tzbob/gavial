@@ -205,4 +205,43 @@ val ui = SessionIBehavior.toClient(todoState).toDBehavior.map {⋯}
 
 ### Application State
 
+=======
+First of, we create an event source `submitPress` and a behavior sink
+`entryText`. Event sources are used to retrieve DOM events as FRP events and
+behavior sinks can be used to read DOM properties. However, since behaviors are
+always defined (even if they're not reading any properties!) you need to supply
+it with a default value.
 
+Next, we model a user submission to the system. In this case, it would be the
+*value* of the inputbox at the *time* of a submit
+
+
+```tut:silent
+object TodoFRP extends MyMain {
+  val submitPress = ClientEvent.source[Unit]
+  val entryText   = ClientBehavior.sink("")
+
+  val entrySubmission: ClientEvent[Entry] = 
+    entryText.snapshotWith(submitPress) { (text, _) =>
+      Entry(false, text)
+    }
+
+  val todoState: ClientIBehavior[List[Entry], Entry] = 
+    entrySubmission.fold(List.empty[Entry])(_ :+ _)
+
+  val ui = todoState.toDBehavior.map { todos =>
+    val rawInput = input(`type` := "text", value := "")
+    val readInput = UI.read(rawInput)(entryText, el => {
+      el.value.asInstanceOf[String]
+    })
+  
+    div(id := "app", 
+      h1("Todo!"),
+      ul(todos.map(_.template)),
+      form(action := "", UI.listen(onsubmit, submitPress)(_ => ()),
+        readInput
+      )
+    )
+  }
+}
+```
