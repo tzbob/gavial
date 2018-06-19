@@ -1,3 +1,5 @@
+import microsites._
+
 resolvers in ThisBuild += "Sonatype OSS Snapshots" at
   "https://oss.sonatype.org/content/repositories/snapshots"
 
@@ -74,3 +76,28 @@ lazy val multitierJS = multitier.js
   .dependsOn(macrosJS)
 
 lazy val multitierJVM = multitier.jvm.dependsOn(macrosJVM)
+
+lazy val docs = project
+  .in(file("docs"))
+  .settings(
+    micrositeName := "Kooi",
+    micrositeDescription := "Multi-tier functional reactive programming for " +
+      "Scala",
+    micrositeHighlightTheme := "atom-one-light",
+    micrositePalette := Map(
+      "brand-primary"   -> "#7F004B",
+      "brand-secondary" -> "#7F265B",
+      "brand-tertiary"  -> "#5E264B",
+      "gray-dark"       -> "#49494B",
+      "gray"            -> "#7B7B7E",
+      "gray-light"      -> "#E5E5E6",
+      "gray-lighter"    -> "#F4F3F4",
+      "white-color"     -> "#FFFFFF"
+    ),
+    micrositeExtraMdFiles := Map(
+      file("README.md") -> ExtraMdFileConfig("index.md", "home")
+    ),
+    micrositeDocumentationUrl := "/tutorial/"
+  )
+  .enablePlugins(MicrositesPlugin)
+  .dependsOn(multitierJS, multitierJVM)
