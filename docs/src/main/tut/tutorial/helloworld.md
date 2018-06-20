@@ -205,43 +205,96 @@ val ui = SessionIBehavior.toClient(todoState).toDBehavior.map {⋯}
 
 ### Application State
 
-=======
 First of, we create an event source `submitPress` and a behavior sink
 `entryText`. Event sources are used to retrieve DOM events as FRP events and
-behavior sinks can be used to read DOM properties. However, since behaviors are
-always defined (even if they're not reading any properties!) you need to supply
+behavior sinks can be used to read properties from the DOM. However, behaviors
+always need to be defined, so even if they're not reading any properties you need to supply
 it with a default value.
 
-Next, we model a user submission to the system. In this case, it would be the
-*value* of the inputbox at the *time* of a submit
-
+Next, we model a user's submission `entrySubmission` of a todo entry. This is modeled as the
+*value* of the inputbox at the *time* of a submit press.
 
 ```tut:silent
-object TodoFRP extends MyMain {
-  val submitPress = ClientEvent.source[Unit]
-  val entryText   = ClientBehavior.sink("")
+val submitPress = ClientEvent.source[Unit]
+val entryText   = ClientBehavior.sink("")
 
-  val entrySubmission: ClientEvent[Entry] = 
-    entryText.snapshotWith(submitPress) { (text, _) =>
-      Entry(false, text)
-    }
-
-  val todoState: ClientIBehavior[List[Entry], Entry] = 
-    entrySubmission.fold(List.empty[Entry])(_ :+ _)
-
-  val ui = todoState.toDBehavior.map { todos =>
-    val rawInput = input(`type` := "text", value := "")
-    val readInput = UI.read(rawInput)(entryText, el => {
-      el.value.asInstanceOf[String]
-    })
-  
-    div(id := "app", 
-      h1("Todo!"),
-      ul(todos.map(_.template)),
-      form(action := "", UI.listen(onsubmit, submitPress)(_ => ()),
-        readInput
-      )
-    )
+val entrySubmission: ClientEvent[Entry] =
+  entryText.snapshotWith(submitPress) { (text, _) =>
+    Entry(false, text)
   }
+```
+
+### Building State
+
+The second change to our application is the definition of `todoState`.
+It is no longer a constant discrete behavior, it is defined in terms of `entrySubmission` instead.
+It is folded by concatenating each entry onto an empty list.
+The state of this naive todo application is simple, it is a growing list of user entries, which is exactly how we model it in the program.
+
+Note that the folded result is a special type of behavior, an incremental behavior (`IBehavior`).
+Incremental behaviors model *why* changes to state happen, this information is available when a behavior is created through a fold since it is known what value the event provided beforehand.
+This information is reflected in the type `ClientIBehavior[List[Entry], Entry]` but we do not use it in the example.
+
+The definition of `ui` remains the same with one exception, `todoState` is converted to a discrete behavior.
+
+```tut:silent
+val todoState: ClientIBehavior[List[Entry], Entry] =
+  entrySubmission.fold(List.empty[Entry]) { (es, e) =>
+    e :: es
+  }
+
+val ui = todoState.toDBehavior.map { todos =>
+  val rawInput = input(`type` := "text", value := "")
+  val readInput = UI.read(rawInput)(entryText, el => {
+    el.value.asInstanceOf[String]
+  })
+
+  div(id := "app",
+    h1("Todo!"),
+    ul(todos.map(_.template)),
+    form(action := "",
+        UI.listen(onsubmit, submitPress)(_ => ()),
+        readInput
+    )
+  )
 }
+```
+
+## Server State
+
+Our current application is client-side, except for the initial HTML rendering on the server, all computation is done on the client.
+In this extension we make use of the server-side functionality of kooi.
+We start with the same functionality as the client-side program and end up with a naive collaborative todo-list.
+
+### Session State
+
+Kooi applications are written in three tiers: `Client`, `Session` and `App`.
+Conceptually, many clients live in the client tier and each of these clients map one-to-one to a representation in the session tier, however, there is only one application tier.
+You can think about client and session tiers as connection-specific state and the application as server-wide state.
+<p align="center">
+  <img alt="Client, Session and App Tier" src="/img/tiers.svg" width="33%"/>
+</p>
+Converting between tiers is possible for events and incremental behaviors using functions such as `toClient`, `toSession` and `toApp`.
+
+Let us change our program by accumulating and sorting the todo list on the server:
+We start by importing the generic encoder/decoder derivation for [circe](https://github.com/circe/circe).
+This makes sure that the values within replicated events or behaviors are suitable to be sent over the network.
+```tut:silent
+import io.circe.generic.auto._
+```
+
+Next we modify `todoState` and `ui` slightly to accumulate and sort on the server.
+`todoState` changes type but its implementation remains mostly the same, it is now an accumulation of a *session* event instead of a *client* event.
+This session behavior result is then converted back to a client behavior to define the user interface.
+
+```tut:invisible
+val ⋯ = (ls: List[Entry]) => null.asInstanceOf[UI.HTML]
+```
+
+```tut:silent
+val todoState: SessionIBehavior[List[Entry], Entry] =
+  ClientEvent.toSession(entrySubmission).fold(List.empty[Entry]) {
+    (es, e) => (e :: es).sortBy(!_.done)
+  }
+val ui = SessionIBehavior.toClient(todoState).toDBehavior.map {⋯}
 ```
