@@ -5,60 +5,52 @@ import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
 
-class ClientEvent[A] private[core] (graph: ReplicationGraph,
-                                    requiresWebSockets: Boolean)
-    extends MockEvent[ClientTier, A](graph, requiresWebSockets)
+class ClientEvent[A] private[core] (graph: GraphState)
+    extends MockEvent[ClientTier, A](graph)
 
 class ClientEventSource[A] private[core] (
-    graph: ReplicationGraph,
-    requiresWebSockets: Boolean
-) extends ClientEvent[A](graph, requiresWebSockets)
+    graph: GraphState
+) extends ClientEvent[A](graph)
 
 object ClientEvent extends MockEventObject[ClientTier] with ClientEventObject {
   def source[A]: ClientEventSource[A] =
-    new ClientEventSource(ReplicationGraph.start, false)
+    new ClientEventSource(GraphState.default)
 
   private[core] def toAppWithClient[A: Decoder: Encoder](
       clientEv: ClientEvent[A]): AppEvent[(Client, A)] = {
-    val hokkoBuilder  = implicitly[HokkoBuilder[AppTier]]
-    val receiverGraph = ReplicationGraphServer.ReceiverEvent(clientEv.graph)
-    hokkoBuilder.event(receiverGraph.source, receiverGraph, false)
+    val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
+    val receiverGraph =
+      ReplicationGraphServer.ReceiverEvent(clientEv.graph.replicationGraph)
+    hokkoBuilder.event(receiverGraph.source,
+                       GraphState(true, receiverGraph, _ => ()))
   }
 
 }
 
-class ClientBehavior[A] private[core] (graph: ReplicationGraph,
-                                       requiresWebSockets: Boolean)
-    extends MockBehavior[ClientTier, A](graph, requiresWebSockets)
+class ClientBehavior[A] private[core] (graph: GraphState)
+    extends MockBehavior[ClientTier, A](graph)
 
-class ClientBehaviorSink[A] private[core] (graph: ReplicationGraph,
-                                           requiresWebSockets: Boolean)
-    extends ClientBehavior[A](graph, requiresWebSockets)
+class ClientBehaviorSink[A] private[core] (graph: GraphState)
+    extends ClientBehavior[A](graph)
 
 object ClientBehavior extends MockBehaviorObject[ClientTier] {
   def sink[A](default: A): ClientBehaviorSink[A] = new ClientBehaviorSink(
-    ReplicationGraph.start,
-    false
+    GraphState.default
   )
 }
 
 class ClientDBehavior[A] private[core] (
-    graph: ReplicationGraph,
-    initial: A,
-    requiresWebSockets: Boolean
-) extends MockDBehavior[ClientTier, A](graph, initial, requiresWebSockets)
+    graph: GraphState,
+    initial: A
+) extends MockDBehavior[ClientTier, A](graph, initial)
 
 object ClientDBehavior extends MockDBehaviorObject[ClientTier]
 
 class ClientIBehavior[A, DeltaA] private[core] (
-    graph: ReplicationGraph,
+    graph: GraphState,
     accumulator: (A, DeltaA) => A,
-    initial: A,
-    requiresWebSockets: Boolean
-) extends MockIBehavior[ClientTier, A, DeltaA](graph,
-                                                 accumulator,
-                                                 initial,
-                                                 requiresWebSockets)
+    initial: A
+) extends MockIBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
 
 object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
@@ -67,7 +59,9 @@ object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
     val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
     val newGraph =
-      ReplicationGraphServer.ReceiverBehavior[A, DeltaA](clientBeh.graph)
+      ReplicationGraphServer.ReceiverBehavior[A, DeltaA](
+        clientBeh.graph.replicationGraph)
+    val state = GraphState(true, newGraph, _ => ())
 
     val transformed =
       IBehavior.transformFromNormal(clientBeh.accumulator)
@@ -77,8 +71,7 @@ object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
     val deltas   = newGraph.deltas.source
     val behavior = deltas.fold(defaultValue)(transformed)
 
-    hokkoBuilder
-      .IBehavior(behavior, defaultValue, newGraph, transformed, true)
+    hokkoBuilder.IBehavior(behavior, defaultValue, state, transformed)
   }
 }
 

@@ -5,26 +5,20 @@ import mtfrp.core._
 
 class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
     private[core] val rep: core.Event[A],
-    private[core] val graph: ReplicationGraph,
-    private[core] val requiresWebSockets: Boolean
+    private[core] val graph: GraphState
 ) extends Event[T, A] {
 
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[T]]
 
   def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A] =
-    hokkoBuilder.IBehavior(rep.fold(initial)(f),
-                           initial,
-                           graph,
-                           f,
-                           requiresWebSockets)
+    hokkoBuilder.IBehavior(rep.fold(initial)(f), initial, graph, f)
 
   def unionWith(other: T#Event[A])(f: (A, A) => A): T#Event[A] =
     hokkoBuilder.event(rep.unionWith(other.rep)(f),
-                       graph + other.graph,
-                       requiresWebSockets || other.requiresWebSockets)
+                       GraphState.any.combine(graph, other.graph))
 
   def collect[B](fb: A => Option[B]): T#Event[B] =
-    hokkoBuilder.event(rep.collect(fb), graph, requiresWebSockets)
+    hokkoBuilder.event(rep.collect(fb), graph)
 }
 
 abstract class HokkoEventObject[
@@ -33,9 +27,11 @@ abstract class HokkoEventObject[
   val builder = implicitly[HokkoBuilder[SubT]]
 
   def empty[A]: SubT#Event[A] =
-    builder.event(core.Event.empty, ReplicationGraph.start, false)
+    builder.event(core.Event.empty, GraphState.default)
 
-  private[core] def apply[A](ev: core.Event[A], requiresWebSockets: Boolean)
-  : SubT#Event[A] =
-    builder.event(ev, ReplicationGraph.start, requiresWebSockets)
+  private[core] def apply[A](ev: core.Event[A],
+                             requiresWebSockets: Boolean): SubT#Event[A] =
+    builder.event(
+      ev,
+      GraphState(requiresWebSockets, ReplicationGraph.start, _ => ()))
 }

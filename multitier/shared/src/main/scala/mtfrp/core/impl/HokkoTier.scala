@@ -15,23 +15,14 @@ trait HokkoTier extends Tier {
 }
 
 trait HokkoBuilder[T <: HokkoTier] {
-  def event[A](rep: core.Event[A],
-               graph: ReplicationGraph,
-               requiresWebSockets: Boolean): T#Event[A]
-  def behavior[A](rep: core.CBehavior[A],
-                  graph: ReplicationGraph,
-                  requiresWebSockets: Boolean): T#Behavior[A]
-  def DBehavior[A](
-      rep: core.DBehavior[A],
-      initial: A,
-      graph: ReplicationGraph,
-      requiresWebSockets: Boolean
-  ): T#DBehavior[A]
+  def event[A](rep: core.Event[A], graph: GraphState): T#Event[A]
+  def behavior[A](rep: core.CBehavior[A], graph: GraphState): T#Behavior[A]
+  def DBehavior[A](rep: core.DBehavior[A],
+                   initial: A,
+                   graph: GraphState): T#DBehavior[A]
   def IBehavior[A, DeltaA](
       rep: core.IBehavior[A, DeltaA],
       initial: A,
-      graph: ReplicationGraph,
-      accumulator: (A, DeltaA) => A,
-      requiresWebSockets: Boolean
-  ): T#IBehavior[A, DeltaA]
+      graph: GraphState,
+      accumulator: (A, DeltaA) => A): T#IBehavior[A, DeltaA]
 }
