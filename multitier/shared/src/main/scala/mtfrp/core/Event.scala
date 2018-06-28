@@ -6,9 +6,7 @@ import hokko.{core => HC}
 import hokko.core.tc
 
 trait Event[T <: Tier, A] {
-  private[core] val requiresWebSockets: Boolean
-
-  private[core] val graph: ReplicationGraph
+  private[core] val graph: GraphState
 
   def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A]
 

@@ -3,18 +3,16 @@ package mtfrp.core.mock
 import mtfrp.core._
 
 class MockBehavior[T <: MockTier: MockBuilder, A](
-    private[core] val graph: ReplicationGraph,
-    private[core] val requiresWebSockets: Boolean
+    private[core] val graph: GraphState
 ) extends Behavior[T, A] {
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
   def reverseApply[B](fb: T#Behavior[A => B]): T#Behavior[B] =
-    mockBuilder.behavior(graph + fb.graph,
-                         requiresWebSockets || fb.requiresWebSockets)
+    mockBuilder.behavior(GraphState.any.combine(graph, fb.graph))
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    mockBuilder.event(graph + ev.graph, ev.requiresWebSockets)
+    mockBuilder.event(???) // TODO: just ev.bool but combine graphs)
 }
 
 abstract class MockBehaviorObject[
@@ -22,5 +20,5 @@ abstract class MockBehaviorObject[
     extends BehaviorObject[SubT] {
   private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
   def constant[A](x: A): SubT#Behavior[A] =
-    mockBuilder.behavior(ReplicationGraph.start, false)
+    mockBuilder.behavior(GraphState.default)
 }

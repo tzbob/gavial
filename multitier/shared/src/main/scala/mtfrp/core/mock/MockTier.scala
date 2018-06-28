@@ -15,16 +15,10 @@ trait MockTier extends Tier {
 }
 
 trait MockBuilder[T <: MockTier] {
-  def event[A](graph: ReplicationGraph, requiresWebSockets: Boolean): T#Event[A]
-  def behavior[A](graph: ReplicationGraph,
-                  requiresWebSockets: Boolean): T#Behavior[A]
-  def DBehavior[A](graph: ReplicationGraph,
-                   initial: A,
-                   requiresWebSockets: Boolean): T#DBehavior[A]
-  def IBehavior[A, DeltaA](
-      graph: ReplicationGraph,
-      accumulator: (A, DeltaA) => A,
-      initial: A,
-      requiresWebSockets: Boolean
-  ): T#IBehavior[A, DeltaA]
+  def event[A](graph: GraphState): T#Event[A]
+  def behavior[A](graph: GraphState): T#Behavior[A]
+  def DBehavior[A](graph: GraphState, initial: A): T#DBehavior[A]
+  def IBehavior[A, DeltaA](graph: GraphState,
+                           accumulator: (A, DeltaA) => A,
+                           initial: A): T#IBehavior[A, DeltaA]
 }

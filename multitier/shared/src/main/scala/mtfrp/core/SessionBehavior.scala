@@ -4,7 +4,7 @@ import cats.implicits._
 
 class SessionBehavior[A] private[core] (
     private[core] val underlying: AppBehavior[Map[Client, A]],
-    private[core] val requiresWebSockets: Boolean
+    private[core] val graph: GraphState
 ) extends Behavior[SessionTier, A] {
 
   override def reverseApply[B](
@@ -17,8 +17,7 @@ class SessionBehavior[A] private[core] (
       }
 
     val revApped = underlying.reverseApply(mapFb)
-    new SessionBehavior(revApped,
-                        this.requiresWebSockets || fb.requiresWebSockets)
+    new SessionBehavior(revApped, GraphState.any.combine(this.graph, fb.graph))
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
@@ -27,7 +26,7 @@ class SessionBehavior[A] private[core] (
       (cfA: Map[Client, A], cfB: Map[Client, B]) =>
         cfA.map2(cfB)(f)
     }
-    new SessionEvent(newUnder, ev.requiresWebSockets)
+    new SessionEvent(newUnder, ev.graph)
   }
 }
 
@@ -36,7 +35,8 @@ object SessionBehavior extends BehaviorObject[SessionTier] {
     val clientMap = AppBehavior.clients.map { clients =>
       clients.map(_ -> x).toMap
     }
-    new SessionBehavior(clientMap, false)
+    val state = clientMap.graph.copy(requiresWebSockets = false)
+    new SessionBehavior(clientMap, state)
   }
 
   def toApp[A](sb: SessionBehavior[A]): AppBehavior[Map[Client, A]] =
@@ -46,6 +46,7 @@ object SessionBehavior extends BehaviorObject[SessionTier] {
     val clientMap = AppBehavior.clients.map { clients =>
       clients.map(c => c -> c).toMap
     }
-    new SessionBehavior(clientMap, true)
+    val state = clientMap.graph.copy(requiresWebSockets = true)
+    new SessionBehavior(clientMap, state)
   }
 }

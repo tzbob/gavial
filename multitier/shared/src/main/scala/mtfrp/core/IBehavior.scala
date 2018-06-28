@@ -6,7 +6,7 @@ import hokko.syntax.SnapshottableSyntax
 import hokko.core.tc
 
 trait IBehavior[T <: Tier, A, DeltaA] {
-  private[core] val requiresWebSockets: Boolean
+  private[core] val graph: GraphState
 
   private[core] def accumulator: (A, DeltaA) => A
 

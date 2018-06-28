@@ -12,16 +12,16 @@ class SessionIBehavior[A, DeltaA] private[core] (
     private[core] val underlying: AppIBehavior[Map[Client, A],
                                                Map[Client, DeltaA]],
     private[core] val initial: A,
-    private[core] val requiresWebSockets: Boolean
+    private[core] val graph: GraphState
 ) extends IBehavior[SessionTier, A, DeltaA] {
   private[core] def accumulator: (A, DeltaA) => A =
     IBehavior.transformFromMap(underlying.accumulator)
 
   def changes: SessionTier#Event[A] =
-    new SessionEvent(underlying.changes, this.requiresWebSockets)
+    new SessionEvent(underlying.changes, this.graph)
 
   def deltas: SessionTier#Event[DeltaA] =
-    new SessionEvent(underlying.deltas, this.requiresWebSockets)
+    new SessionEvent(underlying.deltas, this.graph)
 
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
       accumulator: (B, DeltaB) => B): SessionTier#IBehavior[B, DeltaB] = {
@@ -36,7 +36,7 @@ class SessionIBehavior[A, DeltaA] private[core] (
         accF ++ accumulated
       }
 
-    new SessionIBehavior(newUnderlying, fa(initial), this.requiresWebSockets)
+    new SessionIBehavior(newUnderlying, fa(initial), this.graph)
   }
 
   def map2[B, DeltaB, C, DeltaC](b: SessionTier#IBehavior[B, DeltaB])(
@@ -77,17 +77,17 @@ class SessionIBehavior[A, DeltaA] private[core] (
 
     new SessionIBehavior(newUnderlying,
                          valueFun(this.initial, b.initial),
-                         this.requiresWebSockets || b.requiresWebSockets)
+                         GraphState.any.combine(this.graph, b.graph))
   }
 
   def snapshotWith[B, C](ev: SessionTier#Event[B])(
       f: (A, B) => C): SessionTier#Event[C] =
     new SessionEvent(underlying.snapshotWith(ev.underlying) { (aMap, bMap) =>
       aMap.map2(bMap)(f)
-    }, ev.requiresWebSockets)
+    }, ev.graph)
 
   def toDBehavior: SessionTier#DBehavior[A] =
-    new SessionDBehavior(underlying.toDBehavior, this.requiresWebSockets)
+    new SessionDBehavior(underlying.toDBehavior, this.graph)
 }
 
 object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
@@ -101,7 +101,9 @@ object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
     } { (cMap, _) =>
       cMap
     }
-    new SessionIBehavior(underlying, x, false)
+    new SessionIBehavior(underlying,
+                         x,
+                         underlying.graph.copy(requiresWebSockets = true))
   }
 
   def toApp[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])

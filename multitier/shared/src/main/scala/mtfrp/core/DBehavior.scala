@@ -7,7 +7,7 @@ import hokko.core.tc
 import hokko.syntax.SnapshottableSyntax
 
 trait DBehavior[T <: Tier, A] {
-  private[core] val requiresWebSockets: Boolean
+  private[core] val graph: GraphState
 
   def changes(): T#Event[A]
   def toBehavior: T#Behavior[A]

@@ -5,10 +5,8 @@ import io.circe._
 
 class SessionEvent[A] private[core] (
     private[core] val underlying: AppEvent[Map[Client, A]],
-    private[core] val requiresWebSockets: Boolean
+    private[core] val graph: GraphState
 ) extends Event[SessionTier, A] {
-
-  private[core] val graph: ReplicationGraph = underlying.graph
 
   def collect[B](fb: A => Option[B]): SessionTier#Event[B] = {
     val newUnderlying = underlying.collect { clientMap: Map[Client, A] =>
@@ -18,7 +16,8 @@ class SessionEvent[A] private[core] (
       if (filteredMap.isEmpty) None
       else Option(filteredMap.mapValues(_.get))
     }
-    new SessionEvent(newUnderlying, this.requiresWebSockets)
+
+    new SessionEvent(newUnderlying, this.graph)
   }
 
   def fold[B](initial: B)(f: (B, A) => B): SessionTier#IBehavior[B, A] = {
@@ -29,7 +28,7 @@ class SessionEvent[A] private[core] (
           f)
     }
 
-    new SessionIBehavior(newRep, initial, this.requiresWebSockets)
+    new SessionIBehavior(newRep, initial, this.graph)
   }
 
   def unionWith(b: SessionTier#Event[A])(
@@ -42,22 +41,24 @@ class SessionEvent[A] private[core] (
         leftMap ++ rightMap ++ commonMap
     }
 
-    new SessionEvent(newRep, this.requiresWebSockets || b.requiresWebSockets)
+    val state = GraphState.any.combine(this.graph, b.graph)
+    new SessionEvent(newRep, state)
   }
 }
 
 object SessionEvent extends EventObject[SessionTier] {
   override def empty[A]: SessionEvent[A] =
-    new SessionEvent(AppEvent.empty[Map[Client, A]], false)
+    new SessionEvent(AppEvent.empty[Map[Client, A]], GraphState.default)
+
   override private[core] def apply[A](
       ev: HC.Event[A],
-      requiresWebSockets: Boolean): SessionEvent[A] = {
+      graphState: GraphState): SessionEvent[A] = {
     val appMap: AppEvent[Map[Client, A]] =
-      AppBehavior.clients.snapshotWith(AppEvent(ev, requiresWebSockets)) {
+      AppBehavior.clients.snapshotWith(AppEvent(ev, graphState)) {
         (clients, ev) =>
           clients.map(_ -> ev).toMap
       }
-    new SessionEvent(appMap, requiresWebSockets)
+    new SessionEvent(appMap, graphState)
   }
 
   def toApp[A](sessionEvent: SessionEvent[A]): AppEvent[Map[Client, A]] = {
