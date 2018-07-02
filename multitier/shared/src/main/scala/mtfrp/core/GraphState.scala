@@ -5,7 +5,19 @@ import hokko.core.Engine
 
 case class GraphState(requiresWebSockets: Boolean,
                       replicationGraph: ReplicationGraph,
-                      reader: Engine => Unit)
+                      effect: Engine => Unit) {
+  lazy val ws: GraphState  = copy(requiresWebSockets = true)
+  lazy val xhr: GraphState = copy(requiresWebSockets = false)
+
+  def mergeGraphAndEffect(other: GraphState): GraphState =
+    copy(replicationGraph = this.replicationGraph + other.replicationGraph,
+         effect = (e: Engine) => {
+           this.effect(e); other.effect(e)
+         })
+
+  def withEffect(eff: Engine => Unit): GraphState =
+    copy(effect = (e: Engine) => { effect(e); eff(e) })
+}
 
 object GraphState {
   private def combine(f: (Boolean, Boolean) => Boolean) =
@@ -14,7 +26,7 @@ object GraphState {
         GraphState(f(x.requiresWebSockets, y.requiresWebSockets),
                    x.replicationGraph.combine(y.replicationGraph),
                    (e: Engine) => {
-                     x.reader(e); y.reader(e)
+                     x.effect(e); y.effect(e)
                    })
     }
 

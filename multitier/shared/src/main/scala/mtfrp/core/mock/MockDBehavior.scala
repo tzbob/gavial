@@ -17,7 +17,7 @@ class MockDBehavior[T <: MockTier: MockBuilder, A](
                           fb.initial(initial))
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    mockBuilder.event(???) // TODO
+    mockBuilder.event(ev.graph.mergeGraphAndEffect(this.graph))
 
   def toBehavior: T#Behavior[A] =
     mockBuilder.behavior(graph)

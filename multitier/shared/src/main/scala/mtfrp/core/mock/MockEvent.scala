@@ -26,6 +26,6 @@ abstract class MockEventObject[SubT <: MockTier { type T = SubT }: MockBuilder]
   def empty[A]: SubT#Event[A] = builder.event(GraphState.default)
 
   private[core] def apply[A](ev: HC.Event[A],
-                             requiresWebSocket: Boolean): SubT#Event[A] =
-    builder.event(GraphState.default)
+                             graphState: GraphState): SubT#Event[A] =
+    builder.event(graphState)
 }

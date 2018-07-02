@@ -10,13 +10,13 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
   def makeClientEvent
     : (HC.EventSource[Client => Option[Int]], ClientEvent[Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> AppEvent.toClient(AppEvent(src, true))
+    src -> AppEvent.toClient(AppEvent(src, GraphState.default))
   }
 
   def makeClientBehavior
     : (HC.EventSource[Client => Option[Int]], ClientIBehavior[Int, Int]) = {
     val src = HC.Event.source[Client => Option[Int]]
-    src -> makeCountingBehavior(AppEvent(src, true))
+    src -> makeCountingBehavior(AppEvent(src, GraphState.default))
   }
 
   def makeCountingBehavior(
@@ -38,8 +38,9 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val (ev1src, ev1)      = makeClientEvent
         val (beh1srcsrc, beh1) = makeClientBehavior
 
-        val combined  = beh1.toDBehavior.sampledBy(ev1)
-        val exitEvent = new ReplicationGraphServer(combined.graph).exitEvent
+        val combined = beh1.toDBehavior.sampledBy(ev1)
+        val exitEvent =
+          new ReplicationGraphServer(combined.graph.replicationGraph).exitEvent
 
         val engine = HC.Engine.compile(exitEvent)
 
@@ -75,7 +76,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
         val combined = beh1.changes.unionLeft(beh2.changes)
         val exitBehavior =
-          new ReplicationGraphServer(combined.graph).exitBehavior
+          new ReplicationGraphServer(combined.graph.replicationGraph).exitBehavior
 
         val engine = HC.Engine.compile(exitBehavior)
 
@@ -87,13 +88,13 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
     }
 
     def makeAppEvent: AppEvent[(Client, Int)] = {
-      val ev = new ClientEvent[Int](ReplicationGraph.start, true)
+      val ev = new ClientEvent[Int](GraphState.default)
       ClientEvent.toAppWithClient(ev)
     }
 
     def makeAppBehavior: AppIBehavior[Map[Client, Int], (Client, Int)] = {
       val ev =
-        new ClientIBehavior[Int, Int](ReplicationGraph.start, _ + _, 0, true)
+        new ClientIBehavior[Int, Int](GraphState.default, _ + _, 0)
       ClientIBehavior.toApp(ev)
     }
 
@@ -106,7 +107,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
       val combined = beh1.snapshotWith(ev1) { _ -> _ }
 
       val router: (Client, Message) => Option[Pulse] =
-        new ReplicationGraphServer(combined.graph).inputEventRouter
+        new ReplicationGraphServer(combined.graph.replicationGraph).inputEventRouter
 
       val fresh = ClientGenerator.fresh
 
@@ -120,8 +121,8 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
     "not execute a fold multiple times for resets in Session.toClient" in {
       testDuplicateFolds { (src, eff) =>
         val event: SessionEvent[Int] =
-          new SessionEvent(new AppEvent(src, ReplicationGraph.start, true),
-                           true)
+          new SessionEvent(new AppEvent(src, GraphState.default),
+                           GraphState.default)
 
         val behavior: SessionIBehavior[Int, Int] = event.fold(0) { (acc, n) =>
           eff()
@@ -134,7 +135,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
     "not execute a fold multiple times for resets in AppIBehavior.broadcast" in {
       testDuplicateFolds { (src, eff) =>
         val event: AppEvent[Map[Client, Int]] =
-          new AppEvent(src, ReplicationGraph.start, true)
+          new AppEvent(src, GraphState.default)
         val behavior: AppIBehavior[Int, Int] =
           event.map(_.values.head).fold(0) { (acc, n) =>
             eff()
@@ -159,7 +160,8 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
         val clientIBehavior = mkClientIBehavior(src, () => counter += 1)
 
-        val repGraphServer = new ReplicationGraphServer(clientIBehavior.graph)
+        val repGraphServer =
+          new ReplicationGraphServer(clientIBehavior.graph.replicationGraph)
         val engine = HC.Engine.compile(repGraphServer.exitEvent,
                                        repGraphServer.exitBehavior)
 

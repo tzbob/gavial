@@ -15,12 +15,11 @@ trait MyMain extends js.JSApp with FrpMain with LazyLogging {
   def main(): Unit = {
     val rep      = ui.rep
     val behavior = rep.toCBehavior
-    val manager = new EventManager(ui.requiresWebSockets,
-                                   ui.graph,
-                                   Seq(behavior),
-                                   Seq(rep.changes))
-    val engine = manager.engine
+    val manager  = new EventManager(ui.graph, Seq(behavior), Seq(rep.changes))
+    val engine   = manager.engine
     applyHtml(engine, rep)
+    // Run engine effects
+    ui.graph.effect(engine)
     manager.start()
   }
 

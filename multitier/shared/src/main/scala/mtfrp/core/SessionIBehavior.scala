@@ -66,7 +66,7 @@ class SessionIBehavior[A, DeltaA] private[core] (
               iorLeft ++ iorRight ++ iorBoth
           }
 
-          val deltaMappedMap = (aMap |@| bMap |@| iorMap).map(deltaFun)
+          val deltaMappedMap = (aMap, bMap, iorMap).mapN(deltaFun)
           val filteredMap    = deltaMappedMap.filter(_._2.isDefined)
 
           if (filteredMap.isEmpty) None
@@ -84,7 +84,7 @@ class SessionIBehavior[A, DeltaA] private[core] (
       f: (A, B) => C): SessionTier#Event[C] =
     new SessionEvent(underlying.snapshotWith(ev.underlying) { (aMap, bMap) =>
       aMap.map2(bMap)(f)
-    }, ev.graph)
+    }, ev.graph.mergeGraphAndEffect(this.graph))
 
   def toDBehavior: SessionTier#DBehavior[A] =
     new SessionDBehavior(underlying.toDBehavior, this.graph)
@@ -101,9 +101,7 @@ object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
     } { (cMap, _) =>
       cMap
     }
-    new SessionIBehavior(underlying,
-                         x,
-                         underlying.graph.copy(requiresWebSockets = true))
+    new SessionIBehavior(underlying, x, underlying.graph.ws)
   }
 
   def toApp[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])

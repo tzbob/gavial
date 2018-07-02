@@ -8,10 +8,9 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import slogging.LazyLogging
 
-import scala.collection.immutable
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class XhrRouteCreator(graph: ReplicationGraph) extends LazyLogging {
   private[this] val rgs         = new ReplicationGraphServer(graph)
@@ -46,8 +45,6 @@ class XhrRouteCreator(graph: ReplicationGraph) extends LazyLogging {
 
   def handleRequest(client: Client,
                     stringData: String): Either[Exception, Seq[Message]] = {
-    import cats.instances.all._
-    import cats.syntax.all._
 
     val messages      = decodeData(stringData)
     val fireResultErr = messages.map(msgs => fireMessages(client, msgs))

@@ -15,7 +15,8 @@ class HokkoBehavior[T <: HokkoTier: HokkoBuilder, A](
                           GraphState.any.combine(graph, fb.graph))
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    hokkoBuilder.event(rep.snapshotWith(ev.rep)(f), ???) //todo
+    hokkoBuilder.event(rep.snapshotWith(ev.rep)(f),
+                       ev.graph.mergeGraphAndEffect(this.graph))
 }
 
 abstract class HokkoBehaviorObject[

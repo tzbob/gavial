@@ -2,75 +2,72 @@ package mtfrp
 package core
 
 import hokko.core
+import hokko.core.{Engine, EventSource}
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl._
 import mtfrp.core.mock.MockBuilder
 
-class ClientEvent[A] private[core] (rep: core.Event[A],
-                                    graph: ReplicationGraph,
-                                    requiresWebSockets: Boolean)
-    extends HokkoEvent[ClientTier, A](rep, graph, requiresWebSockets)
+class ClientEvent[A] private[core] (rep: core.Event[A], graph: GraphState)
+    extends HokkoEvent[ClientTier, A](rep, graph)
 
 class ClientEventSource[A] private[core] (override val rep: core.EventSource[A],
-                                          graph: ReplicationGraph,
-                                          requiresWebSockets: Boolean)
-    extends ClientEvent[A](rep, graph, requiresWebSockets)
+                                          graph: GraphState)
+    extends ClientEvent[A](rep, graph)
 
 object ClientEvent extends HokkoEventObject with ClientEventObject {
-  def source[A]: ClientEventSource[A] =
-    new ClientEventSource(core.Event.source[A], ReplicationGraph.start, false)
-
   private[core] def toAppWithClient[A: Decoder: Encoder](
       clientEv: ClientEvent[A]): AppEvent[(Client, A)] = {
     val mockBuilder = implicitly[MockBuilder[AppTier]]
     val newGraph =
-      ReplicationGraphClient.SenderEvent(clientEv.rep, clientEv.graph)
-    mockBuilder.event(newGraph, false)
+      ReplicationGraphClient.SenderEvent(clientEv.rep,
+                                         clientEv.graph.replicationGraph)
+    mockBuilder.event(GraphState(false, newGraph, _ => ()))
+  }
+
+  def source[A]: ClientEventSource[A] =
+    new ClientEventSource(core.Event.source[A], GraphState.default)
+
+  def sourceWithEngineEffect[A](
+      eff: (Engine, (A => Unit)) => Unit): ClientEventSource[A] = {
+    val src: EventSource[A] = core.Event.source[A]
+    new ClientEventSource(src, GraphState.default.withEffect { (e: Engine) =>
+      eff(e, a => e.fire(Seq(src -> a)))
+    })
   }
 }
 
 class ClientBehavior[A] private[core] (
     rep: core.CBehavior[A],
-    graph: ReplicationGraph,
-    requiresWebSockets: Boolean
-) extends HokkoBehavior[ClientTier, A](rep, graph, requiresWebSockets)
+    graph: GraphState
+) extends HokkoBehavior[ClientTier, A](rep, graph)
 
 class ClientBehaviorSink[A] private[core] (
     override val rep: core.CBehaviorSource[A],
-    graph: ReplicationGraph,
-    requiresWebSockets: Boolean
-) extends ClientBehavior[A](rep, graph, requiresWebSockets)
+    graph: GraphState
+) extends ClientBehavior[A](rep, graph)
 
 object ClientBehavior extends HokkoBehaviorObject[ClientTier] {
   def sink[A](default: A): ClientBehaviorSink[A] =
-    new ClientBehaviorSink(core.CBehavior.source(default),
-                           ReplicationGraph.start,
-                           false)
+    new ClientBehaviorSink(core.CBehavior.source(default), GraphState.default)
 }
 
 class ClientDBehavior[A] private[core] (
     rep: core.DBehavior[A],
     initial: A,
-    graph: ReplicationGraph,
-    requiresWebSockets: Boolean
-) extends HokkoDBehavior[ClientTier, A](rep,
-                                          initial,
-                                          graph,
-                                          requiresWebSockets)
+    graph: GraphState
+) extends HokkoDBehavior[ClientTier, A](rep, initial, graph)
 
 object ClientDBehavior extends HokkoDBehaviorObject[ClientTier]
 
 class ClientIBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
     initial: A,
-    graph: ReplicationGraph,
-    accumulator: (A, DeltaA) => A,
-    requiresWebSockets: Boolean
+    graph: GraphState,
+    accumulator: (A, DeltaA) => A
 ) extends HokkoIBehavior[ClientTier, A, DeltaA](rep,
                                                   initial,
                                                   graph,
-                                                  accumulator,
-                                                  requiresWebSockets)
+                                                  accumulator)
 
 object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
@@ -78,15 +75,18 @@ object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
     : AppIBehavior[Map[Client, A], (Client, DeltaA)] = {
     val mockBuilder = implicitly[MockBuilder[AppTier]]
 
-    val newGraph =
-      ReplicationGraphClient.SenderBehavior(clientBeh.rep, clientBeh.graph)
+    val newGraph = ReplicationGraphClient.SenderBehavior(
+      clientBeh.rep,
+      clientBeh.graph.replicationGraph)
 
     val transformed = IBehavior.transformFromNormal(clientBeh.accumulator)
     // FIXME: relying on Map.default is dangerous
     val defaultValue =
       Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
-    mockBuilder.IBehavior(newGraph, transformed, defaultValue, false)
+    mockBuilder.IBehavior(GraphState(false, newGraph, _ => ()),
+                          transformed,
+                          defaultValue)
   }
 }
 

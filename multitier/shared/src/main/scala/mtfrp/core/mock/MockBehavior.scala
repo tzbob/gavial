@@ -12,7 +12,7 @@ class MockBehavior[T <: MockTier: MockBuilder, A](
     mockBuilder.behavior(GraphState.any.combine(graph, fb.graph))
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    mockBuilder.event(???) // TODO: just ev.bool but combine graphs)
+    mockBuilder.event(ev.graph.mergeGraphAndEffect(this.graph))
 }
 
 abstract class MockBehaviorObject[
