@@ -42,7 +42,7 @@ class HokkoIBehavior[T <: HokkoTier: HokkoBuilder, A, DeltaA](
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(
       core.IBehavior.syntaxSnapshottable(rep).snapshotWith(ev.rep)(f),
-      ???) //TODO
+      ev.graph.mergeGraphAndEffect(this.graph))
 
   def toDBehavior: T#DBehavior[A] =
     builder.DBehavior(rep.toDBehavior, initial, graph)

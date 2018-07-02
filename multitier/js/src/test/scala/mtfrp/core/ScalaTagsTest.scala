@@ -20,7 +20,7 @@ class ScalaTagsTest extends WordSpec with Matchers {
       assert(dom.document.getElementById("mtfrpcontent") !== js.undefined)
 
       val ui          = main.ui
-      val clientGraph = new ReplicationGraphClient(ui.graph)
+      val clientGraph = new ReplicationGraphClient(ui.graph.replicationGraph)
       val engine = Engine.compile(clientGraph.exitEvent,
                                   ui.rep,
                                   ui.rep.toCBehavior,

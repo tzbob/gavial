@@ -20,7 +20,7 @@ object Replicator {
 
     val newGraph =
       ReplicationGraphClient.ReceiverBehavior[A, DeltaA](
-        state.graph + deltas.graph)
+        state.graph.replicationGraph + deltas.graph.replicationGraph)
 
     val deltaSource = newGraph.deltas.source
     val resets      = newGraph.resets
@@ -39,8 +39,7 @@ object Replicator {
 
     hokkoBuilder.IBehavior(replicatedBehavior,
                            init,
-                           newGraph,
-                           accumulator,
-                           true)
+                           GraphState(true, newGraph, _ => ()),
+                           accumulator)
   }
 }

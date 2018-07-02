@@ -36,7 +36,7 @@ class SessionDBehavior[A] private[core] (
         }.toMap
     }
 
-    new SessionEvent(newUnder, ev.graph)
+    new SessionEvent(newUnder, ev.graph.mergeGraphAndEffect(this.graph))
   }
 }
 
@@ -45,7 +45,7 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
     val clientMap = AppDBehavior.clients.map { clients =>
       clients.map(_ -> x).toMap
     }
-    val state = clientMap.graph.copy(requiresWebSockets = false)
+    val state = clientMap.graph.xhr
     new SessionDBehavior(clientMap, state)
   }
 

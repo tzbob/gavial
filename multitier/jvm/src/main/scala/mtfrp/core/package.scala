@@ -8,54 +8,44 @@ package object core {
   import hokko.core
 
   implicit object AppBuilder extends HokkoBuilder[AppTier] {
-    def event[A](rep: core.Event[A],
-                 graph: ReplicationGraph,
-                 requiresWebSockets: Boolean): AppTier#Event[A] =
-      new AppEvent(rep, graph, requiresWebSockets)
+    def event[A](rep: core.Event[A], graph: GraphState): AppTier#Event[A] =
+      new AppEvent(rep, graph)
 
     def behavior[A](rep: core.CBehavior[A],
-                    graph: ReplicationGraph,
-                    requiresWebSockets: Boolean): AppTier#Behavior[A] =
-      new AppBehavior(rep, graph, requiresWebSockets)
+                    graph: GraphState): AppTier#Behavior[A] =
+      new AppBehavior(rep, graph)
 
     def DBehavior[A](
         rep: core.DBehavior[A],
         initial: A,
-        graph: ReplicationGraph,
-        requiresWebSockets: Boolean
+        graph: GraphState
     ): AppTier#DBehavior[A] =
-      new AppDBehavior(rep, initial, graph, requiresWebSockets)
+      new AppDBehavior(rep, initial, graph)
 
     def IBehavior[A, DeltaA](
         rep: core.IBehavior[A, DeltaA],
         initial: A,
-        graph: ReplicationGraph,
-        accumulator: (A, DeltaA) => A,
-        requiresWebSockets: Boolean
+        graph: GraphState,
+        accumulator: (A, DeltaA) => A
     ): AppTier#IBehavior[A, DeltaA] =
-      new AppIBehavior(rep, initial, graph, accumulator, requiresWebSockets)
+      new AppIBehavior(rep, initial, graph, accumulator)
   }
 
   implicit object ClientBuilder extends MockBuilder[ClientTier] {
-    def event[A](graph: ReplicationGraph,
-                 requiresWebSockets: Boolean): ClientTier#Event[A] =
-      new ClientEvent(graph, requiresWebSockets)
+    def event[A](graph: GraphState): ClientTier#Event[A] =
+      new ClientEvent(graph)
 
-    def behavior[A](graph: ReplicationGraph,
-                    requiresWebSockets: Boolean): ClientTier#Behavior[A] =
-      new ClientBehavior(graph, requiresWebSockets)
+    def behavior[A](graph: GraphState): ClientTier#Behavior[A] =
+      new ClientBehavior(graph)
 
-    def DBehavior[A](graph: ReplicationGraph,
-                     initial: A,
-                     requiresWebSockets: Boolean): ClientTier#DBehavior[A] =
-      new ClientDBehavior(graph, initial, requiresWebSockets)
+    def DBehavior[A](graph: GraphState, initial: A): ClientTier#DBehavior[A] =
+      new ClientDBehavior(graph, initial)
 
     def IBehavior[A, DeltaA](
-        graph: ReplicationGraph,
+        graph: GraphState,
         accumulator: (A, DeltaA) => A,
-        initial: A,
-        requiresWebSockets: Boolean
+        initial: A
     ): ClientTier#IBehavior[A, DeltaA] =
-      new ClientIBehavior(graph, accumulator, initial, requiresWebSockets)
+      new ClientIBehavior(graph, accumulator, initial)
   }
 }

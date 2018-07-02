@@ -8,13 +8,13 @@ class ReplicationGraphClientTest extends WordSpec {
 
   def makeAppEvent: (HC.EventSource[Int], AppEvent[(Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> ClientEvent.toAppWithClient(ClientEvent(src, true))
+    src -> ClientEvent.toAppWithClient(ClientEvent(src, GraphState.default))
   }
 
   def makeAppBehavior
     : (HC.EventSource[Int], AppIBehavior[Map[Client, Int], (Client, Int)]) = {
     val src = HC.Event.source[Int]
-    src -> makeCountingBehavior(ClientEvent(src, true))
+    src -> makeCountingBehavior(ClientEvent(src, GraphState.default))
   }
 
   def makeCountingBehavior(beh1src: ClientEvent[Int])
@@ -25,16 +25,15 @@ class ReplicationGraphClientTest extends WordSpec {
   "ReplicationGraphClientTest" should {
 
     def makeClientEvent: ClientEvent[Int] =
-      AppEvent.toClient(
-        new AppEvent[Client => Option[Int]](ReplicationGraph.start, false))
+      AppEvent.toClient(new AppEvent[Client => Option[Int]](GraphState.default))
 
     def makeClientBehavior: ClientIBehavior[Int, Int] =
       AppIBehavior.toClient(
         new AppIBehavior[Client => Int, Client => Option[Int]](
-          ReplicationGraph.start,
+          GraphState.default,
           null,
           _ => 0,
-          false),
+        ),
         0)
 
     "build an input event router that deals with events, behavior deltas and behavior resets" in {
@@ -46,7 +45,7 @@ class ReplicationGraphClientTest extends WordSpec {
       val combined = beh1.snapshotWith(ev1) { _ -> _ }
 
       val router: Message => Option[Pulse] =
-        new ReplicationGraphClient(combined.graph).inputEventRouter
+        new ReplicationGraphClient(combined.graph.replicationGraph).inputEventRouter
 
       val resetPulse  = router(Message.fromPayload(1)(10))
       val changePulse = router(Message.fromPayload(2)(20))
@@ -63,8 +62,9 @@ class ReplicationGraphClientTest extends WordSpec {
       val (ev1src, ev1)      = makeAppEvent
       val (beh1srcsrc, beh1) = makeAppBehavior
 
-      val combined  = beh1.toDBehavior.sampledBy(ev1)
-      val exitEvent = new ReplicationGraphClient(combined.graph).exitEvent
+      val combined = beh1.toDBehavior.sampledBy(ev1)
+      val exitEvent =
+        new ReplicationGraphClient(combined.graph.replicationGraph).exitEvent
 
       val engine = HC.Engine.compile(exitEvent)
 

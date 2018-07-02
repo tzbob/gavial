@@ -3,19 +3,18 @@ package mtfrp.core
 import hokko.{core => HC}
 import slogging.LazyLogging
 
-class EventManager(requiresWebSocket: Boolean,
-                   graph: ReplicationGraph,
+class EventManager(graph: GraphState,
                    exitBehaviors: Seq[HC.CBehavior[_]],
                    exitEvents: Seq[HC.Event[_]])
     extends LazyLogging {
-  val rgc = new ReplicationGraphClient(graph)
+  val rgc = new ReplicationGraphClient(graph.replicationGraph)
 
   private val primitives = (rgc.exitEvent :: exitEvents.toList) ::: exitBehaviors.toList
   logger.debug(s"Compiling Engine for $primitives")
   val engine = HC.Engine.compile(primitives)
 
   def start(): Unit = {
-    if (requiresWebSocket) {
+    if (graph.requiresWebSockets) {
       println("Application requires Web Sockets.")
       val receiver = new EventReceiver(rgc, engine, new WsEventListener(ws => {
         val sender = new WsEventSender(rgc, engine, ws)

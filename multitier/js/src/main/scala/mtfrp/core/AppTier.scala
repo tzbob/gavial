@@ -2,6 +2,7 @@ package mtfrp
 package core
 
 import hokko.core
+import hokko.core.Engine
 import io.circe._
 import mtfrp.core.impl.{HokkoAsync, HokkoBuilder}
 import mtfrp.core.mock._
@@ -10,48 +11,52 @@ import slogging.LazyLogging
 // Define all App types
 // Create all App constructors
 
-class AppEvent[A] private[core] (graph: ReplicationGraph,
-                                 requiresWebSockets: Boolean)
-    extends MockEvent[AppTier, A](graph, requiresWebSockets)
+class AppEvent[A] private[core] (graph: GraphState)
+    extends MockEvent[AppTier, A](graph)
+
+class AppEventSource[A] private[core] (graph: GraphState)
+    extends AppEvent[A](graph)
 
 object AppEvent extends MockEventObject with AppEventObject {
   private[core] def toClient[A](appEv: AppEvent[Client => Option[A]])(
       implicit da: Decoder[A],
       ea: Encoder[A]): ClientEvent[A] = {
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
-    val newGraph     = ReplicationGraphClient.ReceiverEvent(appEv.graph)
-    hokkoBuilder.event(newGraph.source, newGraph, true)
+    val newGraph =
+      ReplicationGraphClient.ReceiverEvent(appEv.graph.replicationGraph)
+    val state = GraphState(true, newGraph, _ => ())
+    hokkoBuilder.event(newGraph.source, state)
   }
 
   val start: AppEvent[ClientChange] =
-    new AppEvent(ReplicationGraph.start, false)
+    new AppEvent(GraphState.default)
   val clientChanges: AppEvent[ClientChange] =
-    new AppEvent(ReplicationGraph.start, true)
+    new AppEvent(GraphState.default.ws)
+
+  def source[A]: AppEventSource[A] =
+    new AppEventSource(GraphState.default)
+
+  def sourceWithEngineEffect[A](eff: Engine => Unit): AppEventSource[A] =
+    new AppEventSource(GraphState.default.withEffect(eff))
 }
 
-class AppBehavior[A] private[core] (graph: ReplicationGraph,
-                                    requiresWebSockets: Boolean)
-    extends MockBehavior[AppTier, A](graph, requiresWebSockets)
+class AppBehavior[A] private[core] (graph: GraphState)
+    extends MockBehavior[AppTier, A](graph)
 
 object AppBehavior extends MockBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDBehavior[A] private[core] (
-    graph: ReplicationGraph,
-    initial: A,
-    requiresWebSockets: Boolean
-) extends MockDBehavior[AppTier, A](graph, initial, requiresWebSockets)
+    graph: GraphState,
+    initial: A
+) extends MockDBehavior[AppTier, A](graph, initial)
 
 object AppDBehavior extends MockDBehaviorObject[AppTier] with AppDBehaviorObject
 
 class AppIBehavior[A, DeltaA] private[core] (
-    graph: ReplicationGraph,
+    graph: GraphState,
     accumulator: (A, DeltaA) => A,
     initial: A,
-    requiresWebSockets: Boolean
-) extends MockIBehavior[AppTier, A, DeltaA](graph,
-                                              accumulator,
-                                              initial,
-                                              requiresWebSockets)
+) extends MockIBehavior[AppTier, A, DeltaA](graph, accumulator, initial)
 
 object AppIBehavior
     extends MockIBehaviorObject[AppTier]
@@ -68,7 +73,8 @@ object AppIBehavior
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
     val newGraph =
-      ReplicationGraphClient.ReceiverBehavior[A, DeltaA](appBeh.graph)
+      ReplicationGraphClient.ReceiverBehavior[A, DeltaA](
+        appBeh.graph.replicationGraph)
 
     val deltas = newGraph.deltas.source
     val resets = newGraph.resets
@@ -91,9 +97,8 @@ object AppIBehavior
 
     hokkoBuilder.IBehavior(replicatedBehavior,
                            init,
-                           newGraph,
-                           transformedAccumulator,
-                           true)
+                           GraphState(true, newGraph, _ => ()),
+                           transformedAccumulator)
   }
 }
 

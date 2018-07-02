@@ -9,5 +9,5 @@ abstract class MockAsync[SubT <: MockTier { type T = SubT }: MockBuilder] {
 
   def execute[A](ev: SubT#Event[IO[A]])(
       implicit ec: ExecutionContext): SubT#Event[A] =
-    builder.event(ev.graph, false)
+    builder.event(ev.graph)
 }

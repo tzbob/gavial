@@ -28,7 +28,7 @@ class MockIBehavior[T <: MockTier: MockBuilder, A, DeltaA](
                       valueFun(initial, b.initial))
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
-    builder.event(???) //TODO
+    builder.event(ev.graph.mergeGraphAndEffect(this.graph))
 
   def toDBehavior: T#DBehavior[A] =
     builder.DBehavior(graph, initial)

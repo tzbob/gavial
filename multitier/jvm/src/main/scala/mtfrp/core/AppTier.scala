@@ -2,6 +2,7 @@ package mtfrp
 package core
 
 import hokko.core
+import hokko.core.Engine
 import io.circe._
 import mtfrp.core.impl._
 import mtfrp.core.mock.MockBuilder
@@ -13,6 +14,10 @@ class AppEvent[A] private[core] (
     rep: core.Event[A],
     graph: GraphState
 ) extends HokkoEvent[AppTier, A](rep, graph)
+
+class AppEventSource[A] private[core] (override val rep: core.EventSource[A],
+                                       graph: GraphState)
+    extends AppEvent[A](rep, graph)
 
 object AppEvent extends HokkoEventObject with AppEventObject {
   private[core] def toClient[A](appEv: AppEvent[Client => Option[A]])(
@@ -32,6 +37,12 @@ object AppEvent extends HokkoEventObject with AppEventObject {
   val clientChanges: AppEvent[ClientChange] =
     new AppEvent(clientChangesSource,
                  GraphState(true, ReplicationGraph.start, _ => ()))
+
+  def source[A]: AppEventSource[A] =
+    new AppEventSource(core.Event.source[A], GraphState.default)
+
+  def sourceWithEngineEffect[A](eff: Engine => Unit): AppEventSource[A] =
+    new AppEventSource(core.Event.source[A], GraphState.default.withEffect(eff))
 }
 
 class AppBehavior[A] private[core] (

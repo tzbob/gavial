@@ -30,8 +30,6 @@ abstract class HokkoEventObject[
     builder.event(core.Event.empty, GraphState.default)
 
   private[core] def apply[A](ev: core.Event[A],
-                             requiresWebSockets: Boolean): SubT#Event[A] =
-    builder.event(
-      ev,
-      GraphState(requiresWebSockets, ReplicationGraph.start, _ => ()))
+                             graphState: GraphState): SubT#Event[A] =
+    builder.event(ev, graphState)
 }

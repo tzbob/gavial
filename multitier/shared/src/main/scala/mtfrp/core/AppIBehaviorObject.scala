@@ -51,7 +51,9 @@ trait AppIBehaviorObject {
           aMap.map2(daMap)(appBehavior.accumulator)
       }
 
-    new SessionIBehavior(appBehaviorBroadcast, appBehavior.initial, true)
+    new SessionIBehavior(appBehaviorBroadcast,
+                         appBehavior.initial,
+                         appBehaviorBroadcast.graph.ws)
   }
 
   val clients: AppIBehavior[Set[Client], ClientChange] =

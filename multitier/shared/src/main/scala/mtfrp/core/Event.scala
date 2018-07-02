@@ -20,7 +20,7 @@ trait EventObject[SubT <: Tier { type T = SubT }]
     with FunctorSyntax {
   def empty[A]: SubT#Event[A]
   private[core] def apply[A](ev: HC.Event[A],
-                             requiresWebSocket: Boolean): SubT#Event[A]
+                             graphState: GraphState): SubT#Event[A]
 
   implicit val mtfrpEventInstances: tc.Event[SubT#Event, SubT#IBehavior] =
     new tc.Event[SubT#Event, SubT#IBehavior] {

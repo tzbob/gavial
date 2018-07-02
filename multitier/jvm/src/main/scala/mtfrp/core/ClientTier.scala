@@ -1,6 +1,7 @@
 package mtfrp
 package core
 
+import hokko.core.Engine
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
@@ -25,6 +26,8 @@ object ClientEvent extends MockEventObject[ClientTier] with ClientEventObject {
                        GraphState(true, receiverGraph, _ => ()))
   }
 
+  def sourceWithEngineEffect[A](eff: Engine => Unit): ClientEventSource[A] =
+    new ClientEventSource(GraphState.default.withEffect(eff))
 }
 
 class ClientBehavior[A] private[core] (graph: GraphState)

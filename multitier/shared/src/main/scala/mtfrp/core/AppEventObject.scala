@@ -7,6 +7,6 @@ trait AppEventObject {
         clients.map(c => c -> event).toMap
     }
     new SessionEvent(appEvBroadcast,
-                     appEvBroadcast.graph.copy(requiresWebSockets = true))
+                     appEvBroadcast.graph.ws)
   }
 }

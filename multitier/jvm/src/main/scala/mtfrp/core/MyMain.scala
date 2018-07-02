@@ -2,16 +2,13 @@ package mtfrp.core
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import hokko.core.Engine
 
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
-import scala.io.StdIn
 
 trait MyMain extends FrpMain {
 
@@ -19,13 +16,13 @@ trait MyMain extends FrpMain {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
 
-    val (route, engine) = if (ui.requiresWebSockets) {
+    val (route, engine) = if (ui.graph.requiresWebSockets) {
       println("Application requires web sockets.")
-      val creator = new WebSocketRouteCreator(ui.graph)
+      val creator = new WebSocketRouteCreator(ui.graph.replicationGraph)
       (creator.route, creator.engine)
     } else {
       println("Application does not require web sockets, running on XHR.")
-      val creator = new XhrRouteCreator(ui.graph)
+      val creator = new XhrRouteCreator(ui.graph.replicationGraph)
       (creator.route, creator.engine)
     }
 

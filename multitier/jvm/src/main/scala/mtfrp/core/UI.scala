@@ -1,8 +1,6 @@
 package mtfrp.core
 
 import mtfrp.core.macros.Dummy
-
-import scala.language.dynamics
 import scalatags.generic.AttrPair
 import scalatags.text.Builder
 

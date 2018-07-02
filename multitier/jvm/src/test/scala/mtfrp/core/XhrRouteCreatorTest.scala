@@ -1,7 +1,6 @@
 package mtfrp.core
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import hokko.{core => HC}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.WordSpec
@@ -35,7 +34,7 @@ class XhrRouteCreatorTest extends WordSpec with ScalatestRouteTest {
     "return fold result" in {
       HasToken.reset()
 
-      val clientEvent = new ClientEvent[Int](ReplicationGraph.start, false)
+      val clientEvent = new ClientEvent[Int](GraphState.default)
       val appBehavior: AppIBehavior[Int, Int] =
         ClientEvent.toApp(clientEvent).fold(0) { (old, n) =>
           old + n
@@ -43,7 +42,7 @@ class XhrRouteCreatorTest extends WordSpec with ScalatestRouteTest {
       val clientBehavior =
         SessionIBehavior.toClient(AppIBehavior.toSession(appBehavior))
 
-      val creator = new XhrRouteCreator(clientBehavior.graph)
+      val creator = new XhrRouteCreator(clientBehavior.graph.replicationGraph)
 
       val messages = List(Message(1, "1".asJson)).asJson.noSpaces
       val client   = ClientGenerator.static

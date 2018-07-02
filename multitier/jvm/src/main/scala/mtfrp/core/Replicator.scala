@@ -16,9 +16,12 @@ object Replicator {
     eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
     val newGraph =
-      ReplicationGraphServer.SenderBehavior(state.rep,
-                                            deltas.rep,
-                                            state.graph + deltas.graph)
-    mockBuilder.IBehavior(newGraph, accumulator, init, true)
+      ReplicationGraphServer.SenderBehavior(
+        state.rep,
+        deltas.rep,
+        state.graph.replicationGraph + deltas.graph.replicationGraph)
+    mockBuilder.IBehavior(GraphState(true, newGraph, _ => ()),
+                          accumulator,
+                          init)
   }
 }
