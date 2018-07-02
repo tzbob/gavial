@@ -2,7 +2,7 @@ package mtfrp
 package core
 
 import hokko.core
-import hokko.core.{Engine, EventSource}
+import hokko.core.Engine
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl._
 import mtfrp.core.mock.MockBuilder
@@ -29,7 +29,7 @@ object ClientEvent extends HokkoEventObject with ClientEventObject {
 
   def sourceWithEngineEffect[A](
       eff: (Engine, (A => Unit)) => Unit): ClientEventSource[A] = {
-    val src: EventSource[A] = core.Event.source[A]
+    val src = core.Event.source[A]
     new ClientEventSource(src, GraphState.default.withEffect { (e: Engine) =>
       eff(e, a => e.fire(Seq(src -> a)))
     })
