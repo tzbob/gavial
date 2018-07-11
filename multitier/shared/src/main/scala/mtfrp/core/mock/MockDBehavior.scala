@@ -3,9 +3,10 @@ package mtfrp.core.mock
 import mtfrp.core._
 
 class MockDBehavior[T <: MockTier: MockBuilder, A](
-    private[core] val graph: GraphState,
+    graphByName: GraphState,
     private[core] val initial: A
 ) extends DBehavior[T, A] {
+  private[core] lazy val graph  = graphByName
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
@@ -30,4 +31,7 @@ abstract class MockDBehaviorObject[
 
   def constant[A](x: A): SubT#DBehavior[A] =
     mockBuilder.DBehavior(GraphState.default, x)
+
+  def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A] =
+    mockBuilder.DBehavior(db.graph, init)
 }

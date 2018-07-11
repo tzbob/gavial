@@ -48,7 +48,7 @@ class AppBehavior[A] private[core] (graph: GraphState)
 object AppBehavior extends MockBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDBehavior[A] private[core] (
-    graph: GraphState,
+    graph: => GraphState,
     initial: A
 ) extends MockDBehavior[AppTier, A](graph, initial)
 

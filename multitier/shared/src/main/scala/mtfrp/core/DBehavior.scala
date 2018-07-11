@@ -23,6 +23,8 @@ trait DBehaviorObject[SubT <: Tier { type T = SubT }]
     with SnapshottableSyntax[SubT#Event, SubT#DBehavior] {
   def constant[A](x: A): SubT#DBehavior[A]
 
+  def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A]
+
   implicit val mtfrpDBehaviorInstances: tc.Snapshottable[
     SubT#DBehavior,
     SubT#Event] with Applicative[SubT#DBehavior] =

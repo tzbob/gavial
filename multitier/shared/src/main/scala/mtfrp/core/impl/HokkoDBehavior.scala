@@ -6,8 +6,9 @@ import mtfrp.core._
 class HokkoDBehavior[T <: HokkoTier: HokkoBuilder, A](
     private[core] val rep: core.DBehavior[A],
     private[core] val initial: A,
-    private[core] val graph: GraphState
+    graphByName: => GraphState
 ) extends DBehavior[T, A] {
+  private[core] lazy val graph = graphByName
 
   private[this] val builder = implicitly[HokkoBuilder[T]]
 
@@ -21,7 +22,7 @@ class HokkoDBehavior[T <: HokkoTier: HokkoBuilder, A](
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
     builder.event(this.rep.snapshotWith(ev.rep)(f),
-      ev.graph.mergeGraphAndEffect(this.graph))
+                  ev.graph.mergeGraphAndEffect(this.graph))
 
   def toBehavior: T#Behavior[A] = builder.behavior(rep.toCBehavior, graph)
 
@@ -31,7 +32,9 @@ abstract class HokkoDBehaviorObject[
     SubT <: HokkoTier { type T = SubT }: HokkoBuilder]
     extends DBehaviorObject[SubT] {
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[SubT]]
-
   def constant[A](x: A): SubT#DBehavior[A] =
     hokkoBuilder.DBehavior(core.DBehavior.constant(x), x, GraphState.default)
+
+  def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A] =
+    hokkoBuilder.DBehavior(core.DBehavior.delayed(db.rep, init), init, db.graph)
 }

@@ -45,7 +45,7 @@ object ClientBehavior extends MockBehaviorObject[ClientTier] {
 }
 
 class ClientDBehavior[A] private[core] (
-    graph: GraphState,
+    graph: => GraphState,
     initial: A
 ) extends MockDBehavior[ClientTier, A](graph, initial)
 

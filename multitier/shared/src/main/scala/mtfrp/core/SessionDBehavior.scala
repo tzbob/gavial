@@ -49,6 +49,11 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
     new SessionDBehavior(clientMap, state)
   }
 
+  override def delayed[A](db: => SessionDBehavior[A],
+                          init: A): SessionDBehavior[A] = {
+    ???
+  }
+
   def toApp[A](sb: SessionDBehavior[A]): AppDBehavior[Map[Client, A]] =
     sb.underlying
 }

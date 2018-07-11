@@ -19,7 +19,7 @@ trait HokkoBuilder[T <: HokkoTier] {
   def behavior[A](rep: core.CBehavior[A], graph: GraphState): T#Behavior[A]
   def DBehavior[A](rep: core.DBehavior[A],
                    initial: A,
-                   graph: GraphState): T#DBehavior[A]
+                   graph: => GraphState): T#DBehavior[A]
   def IBehavior[A, DeltaA](
       rep: core.IBehavior[A, DeltaA],
       initial: A,

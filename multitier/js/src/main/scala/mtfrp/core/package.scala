@@ -18,7 +18,7 @@ package object core {
     def DBehavior[A](
         rep: core.DBehavior[A],
         initial: A,
-        graph: GraphState
+        graph: => GraphState
     ): ClientTier#DBehavior[A] =
       new ClientDBehavior(rep, initial, graph)
 
@@ -38,7 +38,7 @@ package object core {
     def behavior[A](graph: GraphState): AppTier#Behavior[A] =
       new AppBehavior(graph)
 
-    def DBehavior[A](graph: GraphState, initial: A): AppTier#DBehavior[A] =
+    def DBehavior[A](graph: => GraphState, initial: A): AppTier#DBehavior[A] =
       new AppDBehavior(graph, initial)
 
     def IBehavior[A, DeltaA](

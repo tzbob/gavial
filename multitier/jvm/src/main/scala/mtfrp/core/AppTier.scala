@@ -60,7 +60,7 @@ object AppBehavior extends HokkoBehaviorObject[AppTier] with AppBehaviorObject
 class AppDBehavior[A] private[core] (
     rep: core.DBehavior[A],
     initial: A,
-    graph: GraphState
+    graph: => GraphState
 ) extends HokkoDBehavior[AppTier, A](rep, initial, graph)
 
 object AppDBehavior
