@@ -27,7 +27,7 @@ object AppEvent extends HokkoEventObject with AppEventObject {
     val newGraph = ReplicationGraphServer.SenderEvent(
       appEv.rep,
       appEv.graph.replicationGraph)
-    mockBuilder.event(GraphState(true, newGraph, _ => ()))
+    mockBuilder.event(appEv.graph.ws.withGraph(newGraph))
   }
 
   private[core] val serverStart = core.Event.source[Unit]
@@ -35,8 +35,7 @@ object AppEvent extends HokkoEventObject with AppEventObject {
     new AppEvent(serverStart, GraphState.default)
   private[core] val clientChangesSource = core.Event.source[ClientChange]
   val clientChanges: AppEvent[ClientChange] =
-    new AppEvent(clientChangesSource,
-                 GraphState(true, ReplicationGraph.start, _ => ()))
+    new AppEvent(clientChangesSource, GraphState.default.ws)
 
   def source[A]: AppEventSource[A] =
     new AppEventSource(core.Event.source[A], GraphState.default)

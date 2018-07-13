@@ -33,5 +33,5 @@ abstract class MockDBehaviorObject[
     mockBuilder.DBehavior(GraphState.default, x)
 
   def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A] =
-    mockBuilder.DBehavior(db.graph, init)
+    mockBuilder.DBehavior(GraphState.delayed(db.graph), init)
 }

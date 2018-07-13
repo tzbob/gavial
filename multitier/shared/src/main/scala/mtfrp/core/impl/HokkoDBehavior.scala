@@ -36,5 +36,7 @@ abstract class HokkoDBehaviorObject[
     hokkoBuilder.DBehavior(core.DBehavior.constant(x), x, GraphState.default)
 
   def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A] =
-    hokkoBuilder.DBehavior(core.DBehavior.delayed(db.rep, init), init, db.graph)
+    hokkoBuilder.DBehavior(core.DBehavior.delayed(db.rep, init),
+                           init,
+                           GraphState.delayed(db.graph))
 }

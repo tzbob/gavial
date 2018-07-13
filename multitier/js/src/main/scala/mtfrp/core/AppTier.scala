@@ -24,7 +24,7 @@ object AppEvent extends MockEventObject with AppEventObject {
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
     val newGraph =
       ReplicationGraphClient.ReceiverEvent(appEv.graph.replicationGraph)
-    val state = GraphState(true, newGraph, _ => ())
+    val state = appEv.graph.ws.withGraph(newGraph)
     hokkoBuilder.event(newGraph.source, state)
   }
 
@@ -99,7 +99,7 @@ object AppIBehavior
 
     hokkoBuilder.IBehavior(replicatedBehavior,
                            init,
-                           GraphState(true, newGraph, _ => ()),
+                           appBeh.graph.ws.withGraph(newGraph),
                            transformedAccumulator)
   }
 }

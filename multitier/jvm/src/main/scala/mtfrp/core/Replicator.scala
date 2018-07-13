@@ -20,7 +20,10 @@ object Replicator {
         state.rep,
         deltas.rep,
         state.graph.replicationGraph + deltas.graph.replicationGraph)
-    mockBuilder.IBehavior(GraphState(true, newGraph, _ => ()),
+    mockBuilder.IBehavior(state.graph
+                            .mergeGraphAndEffect(deltas.graph)
+                            .ws
+                            .withGraph(newGraph),
                           accumulator,
                           init)
   }

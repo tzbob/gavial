@@ -21,7 +21,8 @@ object ClientEvent extends HokkoEventObject with ClientEventObject {
     val newGraph = ReplicationGraphClient.SenderEvent(
       clientEv.rep,
       clientEv.graph.replicationGraph)
-    mockBuilder.event(GraphState(false, newGraph, _ => ()))
+    val graph = clientEv.graph.withGraph(newGraph)
+    mockBuilder.event(graph)
   }
 
   def source[A]: ClientEventSource[A] =
@@ -84,7 +85,7 @@ object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
     val defaultValue =
       Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
-    mockBuilder.IBehavior(GraphState(false, newGraph, _ => ()),
+    mockBuilder.IBehavior(clientBeh.graph.withGraph(newGraph),
                           transformed,
                           defaultValue)
   }

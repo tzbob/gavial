@@ -37,9 +37,10 @@ object Replicator {
         accumulator(acc, n)
       }
 
-    hokkoBuilder.IBehavior(replicatedBehavior,
-                           init,
-                           GraphState(true, newGraph, _ => ()),
-                           accumulator)
+    hokkoBuilder.IBehavior(
+      replicatedBehavior,
+      init,
+      state.graph.mergeGraphAndEffect(deltas.graph).ws.withGraph(newGraph),
+      accumulator)
   }
 }

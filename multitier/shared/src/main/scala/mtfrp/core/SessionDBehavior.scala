@@ -51,7 +51,10 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
 
   override def delayed[A](db: => SessionDBehavior[A],
                           init: A): SessionDBehavior[A] = {
-    ???
+    val delayedApp = AppDBehavior.delayed(
+      db.underlying,
+      Map.empty[Client, A].withDefaultValue(init))
+    new SessionDBehavior[A](delayedApp, delayedApp.graph)
   }
 
   def toApp[A](sb: SessionDBehavior[A]): AppDBehavior[Map[Client, A]] =

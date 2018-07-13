@@ -23,7 +23,7 @@ object ClientEvent extends MockEventObject[ClientTier] with ClientEventObject {
     val receiverGraph =
       ReplicationGraphServer.ReceiverEvent(clientEv.graph.replicationGraph)
     hokkoBuilder.event(receiverGraph.source,
-                       GraphState(true, receiverGraph, _ => ()))
+                       clientEv.graph.withGraph(receiverGraph))
   }
 
   def sourceWithEngineEffect[A](
@@ -66,7 +66,7 @@ object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
     val newGraph =
       ReplicationGraphServer.ReceiverBehavior[A, DeltaA](
         clientBeh.graph.replicationGraph)
-    val state = GraphState(true, newGraph, _ => ())
+    val state = clientBeh.graph.withGraph(newGraph)
 
     val transformed =
       IBehavior.transformFromNormal(clientBeh.accumulator)
