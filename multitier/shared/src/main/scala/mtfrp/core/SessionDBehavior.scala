@@ -1,7 +1,10 @@
 package mtfrp.core
 
+import io.circe.{Decoder, Encoder}
+
 class SessionDBehavior[A] private[core] (
     private[core] val underlying: AppDBehavior[Map[Client, A]],
+    private[core] val initial: A,
     private[core] val graph: GraphState
 ) extends DBehavior[SessionTier, A] {
   override def changes(): SessionEvent[A] =
@@ -9,6 +12,25 @@ class SessionDBehavior[A] private[core] (
 
   override def toBehavior: SessionTier#Behavior[A] =
     new SessionBehavior(underlying.toBehavior, graph)
+
+  override def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
+      patch: (A, DeltaA) => A): SessionIBehavior[A, DeltaA] =
+    new SessionIBehavior(
+      underlying.toIBehavior {
+        (mapOld: Map[Client, A], mapNow: Map[Client, A]) =>
+          val keys = mapOld.keySet intersect mapNow.keySet
+          keys.map { key =>
+            key -> diff(mapOld(key), mapNow(key))
+          }.toMap
+      } { (map, deltaMap) =>
+        val keys = map.keySet intersect deltaMap.keySet
+        keys.map { key =>
+          key -> patch(map(key), deltaMap(key))
+        }.toMap
+      },
+      initial,
+      graph
+    )
 
   override def reverseApply[B](
       fb: SessionTier#DBehavior[A => B]): SessionTier#DBehavior[B] = {
@@ -23,7 +45,9 @@ class SessionDBehavior[A] private[core] (
       }
 
     val revApped = underlying.reverseApply(mapFb)
-    new SessionDBehavior(revApped, GraphState.all.combine(graph, fb.graph))
+    new SessionDBehavior(revApped,
+                         fb.initial(initial),
+                         GraphState.all.combine(graph, fb.graph))
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
@@ -46,7 +70,7 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
       clients.map(_ -> x).toMap
     }
     val state = clientMap.graph.xhr
-    new SessionDBehavior(clientMap, state)
+    new SessionDBehavior(clientMap, x, state)
   }
 
   override def delayed[A](db: => SessionDBehavior[A],
@@ -54,9 +78,18 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
     val delayedApp = AppDBehavior.delayed(
       db.underlying,
       Map.empty[Client, A].withDefaultValue(init))
-    new SessionDBehavior[A](delayedApp, delayedApp.graph)
+    new SessionDBehavior[A](delayedApp, init, delayedApp.graph)
   }
 
   def toApp[A](sb: SessionDBehavior[A]): AppDBehavior[Map[Client, A]] =
     sb.underlying
+
+  def toClient[A, DeltaA](sessionB: SessionDBehavior[A])(
+      implicit dec: Decoder[A],
+      enc: Encoder[A]): ClientDBehavior[A] = {
+    SessionIBehavior
+      .toClient(sessionB.toIBehavior((_, a) => a)((_, a) => a))
+      .toDBehavior
+  }
+
 }

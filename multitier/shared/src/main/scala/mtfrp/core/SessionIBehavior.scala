@@ -87,7 +87,7 @@ class SessionIBehavior[A, DeltaA] private[core] (
     }, ev.graph.mergeGraphAndEffect(this.graph))
 
   def toDBehavior: SessionTier#DBehavior[A] =
-    new SessionDBehavior(underlying.toDBehavior, this.graph)
+    new SessionDBehavior(underlying.toDBehavior, this.initial, this.graph)
 }
 
 object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {

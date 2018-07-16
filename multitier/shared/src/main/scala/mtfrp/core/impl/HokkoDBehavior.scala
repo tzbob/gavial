@@ -26,6 +26,9 @@ class HokkoDBehavior[T <: HokkoTier: HokkoBuilder, A](
 
   def toBehavior: T#Behavior[A] = builder.behavior(rep.toCBehavior, graph)
 
+  def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
+      patch: (A, DeltaA) => A): T#IBehavior[A, DeltaA] =
+    builder.IBehavior(rep.toIBehavior(diff)(patch), initial, graphByName, patch)
 }
 
 abstract class HokkoDBehaviorObject[

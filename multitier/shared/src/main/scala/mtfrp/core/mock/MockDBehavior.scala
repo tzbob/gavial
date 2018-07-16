@@ -6,7 +6,7 @@ class MockDBehavior[T <: MockTier: MockBuilder, A](
     graphByName: GraphState,
     private[core] val initial: A
 ) extends DBehavior[T, A] {
-  private[core] lazy val graph  = graphByName
+  private[core] lazy val graph = graphByName
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
@@ -22,6 +22,10 @@ class MockDBehavior[T <: MockTier: MockBuilder, A](
 
   def toBehavior: T#Behavior[A] =
     mockBuilder.behavior(graph)
+
+  def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
+      patch: (A, DeltaA) => A): T#IBehavior[A, DeltaA] =
+    mockBuilder.IBehavior(graph, patch, initial)
 }
 
 abstract class MockDBehaviorObject[

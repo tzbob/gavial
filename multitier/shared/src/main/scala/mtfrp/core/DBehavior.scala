@@ -11,9 +11,12 @@ trait DBehavior[T <: Tier, A] {
 
   def changes(): T#Event[A]
   def toBehavior: T#Behavior[A]
+  def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
+      patch: (A, DeltaA) => A): T#IBehavior[A, DeltaA]
 
   def reverseApply[B](fb: T#DBehavior[A => B]): T#DBehavior[B]
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
+
 }
 
 trait DBehaviorObject[SubT <: Tier { type T = SubT }]
@@ -25,9 +28,9 @@ trait DBehaviorObject[SubT <: Tier { type T = SubT }]
 
   def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A]
 
-  implicit val mtfrpDBehaviorInstances: tc.Snapshottable[
-    SubT#DBehavior,
-    SubT#Event] with Applicative[SubT#DBehavior] =
+  implicit val mtfrpDBehaviorInstances
+    : tc.Snapshottable[SubT#DBehavior, SubT#Event] with Applicative[
+      SubT#DBehavior] =
     new tc.Snapshottable[SubT#DBehavior, SubT#Event]
     with Applicative[SubT#DBehavior] {
       override def snapshotWith[A, B, C](

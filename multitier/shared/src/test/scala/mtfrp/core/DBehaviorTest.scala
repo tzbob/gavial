@@ -6,6 +6,7 @@ import org.scalatest.WordSpec
 class DBehaviorTest extends WordSpec {
 
   "DBehaviors" can {
+
     "be defined recursively" in {
 
       object TestA {
@@ -13,7 +14,6 @@ class DBehaviorTest extends WordSpec {
         val count      = emptyEvent.fold(0)(_ + _).toDBehavior
 
         val delayed: AppDBehavior[Int] = AppDBehavior.delayed(result, 200)
-
         val result = count.map2(delayed)(_ + _)
 
         val client = SessionEvent.toClient(AppEvent.toSession(result.changes))
