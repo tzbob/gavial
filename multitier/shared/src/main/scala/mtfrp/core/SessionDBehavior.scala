@@ -5,8 +5,10 @@ import io.circe.{Decoder, Encoder}
 class SessionDBehavior[A] private[core] (
     private[core] val underlying: AppDBehavior[Map[Client, A]],
     private[core] val initial: A,
-    private[core] val graph: GraphState
+    graphByName: => GraphState
 ) extends DBehavior[SessionTier, A] {
+  private[core] lazy val graph = graphByName
+
   override def changes(): SessionEvent[A] =
     new SessionEvent(underlying.changes, graph)
 

@@ -4,8 +4,9 @@ import cats.implicits._
 
 class SessionBehavior[A] private[core] (
     private[core] val underlying: AppBehavior[Map[Client, A]],
-    private[core] val graph: GraphState
+    graphByName: => GraphState
 ) extends Behavior[SessionTier, A] {
+  private[core] val graph = graphByName
 
   override def reverseApply[B](
       fb: SessionTier#Behavior[A => B]): SessionTier#Behavior[B] = {

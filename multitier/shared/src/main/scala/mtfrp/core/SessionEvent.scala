@@ -5,8 +5,9 @@ import io.circe._
 
 class SessionEvent[A] private[core] (
     private[core] val underlying: AppEvent[Map[Client, A]],
-    private[core] val graph: GraphState
+    graphByName: GraphState
 ) extends Event[SessionTier, A] {
+  private[core] lazy val graph = graphByName
 
   def collect[B](fb: A => Option[B]): SessionTier#Event[B] = {
     val newUnderlying = underlying.collect { clientMap: Map[Client, A] =>

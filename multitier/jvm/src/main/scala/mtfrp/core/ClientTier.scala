@@ -20,10 +20,13 @@ object ClientEvent extends MockEventObject[ClientTier] with ClientEventObject {
   private[core] def toAppWithClient[A: Decoder: Encoder](
       clientEv: ClientEvent[A]): AppEvent[(Client, A)] = {
     val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
-    val receiverGraph =
-      ReplicationGraphServer.ReceiverEvent(clientEv.graph.replicationGraph)
-    hokkoBuilder.event(receiverGraph.source,
-                       clientEv.graph.withGraph(receiverGraph))
+
+    val src = hokko.core.Event.source[(Client, A)]
+    val receiverGraph = clientEv.graph.replicationGraph.map { rg =>
+      ReplicationGraphServer.ReceiverEvent(rg, src)
+    }
+
+    hokkoBuilder.event(src, clientEv.graph.withGraph(receiverGraph))
   }
 
   def sourceWithEngineEffect[A](
@@ -63,9 +66,10 @@ object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
     : AppIBehavior[Map[Client, A], (Client, DeltaA)] = {
     val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
-    val newGraph =
-      ReplicationGraphServer.ReceiverBehavior[A, DeltaA](
-        clientBeh.graph.replicationGraph)
+    val deltas = hokko.core.Event.source[(Client, DeltaA)]
+    val newGraph = clientBeh.graph.replicationGraph.map { rg =>
+      ReplicationGraphServer.ReceiverBehavior[A, DeltaA](rg, deltas)
+    }
     val state = clientBeh.graph.withGraph(newGraph)
 
     val transformed =
@@ -73,7 +77,6 @@ object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
     val defaultValue =
       Map.empty[Client, A].withDefaultValue(clientBeh.initial)
 
-    val deltas   = newGraph.deltas.source
     val behavior = deltas.fold(defaultValue)(transformed)
 
     hokkoBuilder.IBehavior(behavior, defaultValue, state, transformed)

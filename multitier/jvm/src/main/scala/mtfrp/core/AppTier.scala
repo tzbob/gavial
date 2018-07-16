@@ -1,6 +1,7 @@
 package mtfrp
 package core
 
+import cats.Eval
 import hokko.core
 import hokko.core.Engine
 import io.circe._
@@ -24,9 +25,10 @@ object AppEvent extends HokkoEventObject with AppEventObject {
       implicit da: Decoder[A],
       ea: Encoder[A]): ClientEvent[A] = {
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
-    val newGraph = ReplicationGraphServer.SenderEvent(
-      appEv.rep,
-      appEv.graph.replicationGraph)
+
+    val newGraph = appEv.graph.replicationGraph.map { rg =>
+      ReplicationGraphServer.SenderEvent(appEv.rep, rg)
+    }
     mockBuilder.event(appEv.graph.ws.withGraph(newGraph))
   }
 
@@ -43,8 +45,10 @@ object AppEvent extends HokkoEventObject with AppEventObject {
   def sourceWithEngineEffect[A](
       eff: (Engine, (A => Unit)) => Unit): AppEventSource[A] = {
     val src = core.Event.source[A]
-    new AppEventSource(src, GraphState.default.withEffect { (e: Engine) =>
-      eff(e, a => e.fire(Seq(src -> a)))
+    new AppEventSource(src, GraphState.default.withEffect {
+      Eval.later { (e: Engine) =>
+        eff(e, a => e.fire(Seq(src -> a)))
+      }
     })
   }
 }

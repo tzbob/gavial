@@ -40,7 +40,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
         val combined = beh1.toDBehavior.sampledBy(ev1)
         val exitEvent =
-          new ReplicationGraphServer(combined.graph.replicationGraph).exitEvent
+          new ReplicationGraphServer(combined.graph.replicationGraph.value).exitEvent
 
         val engine = HC.Engine.compile(exitEvent)
 
@@ -76,7 +76,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
         val combined = beh1.changes.unionLeft(beh2.changes)
         val exitBehavior =
-          new ReplicationGraphServer(combined.graph.replicationGraph).exitBehavior
+          new ReplicationGraphServer(combined.graph.replicationGraph.value).exitBehavior
 
         val engine = HC.Engine.compile(exitBehavior)
 
@@ -107,7 +107,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
       val combined = beh1.snapshotWith(ev1) { _ -> _ }
 
       val router: (Client, Message) => Option[Pulse] =
-        new ReplicationGraphServer(combined.graph.replicationGraph).inputEventRouter
+        new ReplicationGraphServer(combined.graph.replicationGraph.value).inputEventRouter
 
       val fresh = ClientGenerator.fresh
 
@@ -161,7 +161,8 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val clientIBehavior = mkClientIBehavior(src, () => counter += 1)
 
         val repGraphServer =
-          new ReplicationGraphServer(clientIBehavior.graph.replicationGraph)
+          new ReplicationGraphServer(
+            clientIBehavior.graph.replicationGraph.value)
         val engine = HC.Engine.compile(repGraphServer.exitEvent,
                                        repGraphServer.exitBehavior)
 

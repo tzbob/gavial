@@ -3,6 +3,8 @@ package mtfrp.core
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.mock.MockBuilder
 
+import cats.implicits._
+
 object Replicator {
 
   def toClient[A, DeltaA](
@@ -16,10 +18,12 @@ object Replicator {
     eda: Encoder[DeltaA]): ClientIBehavior[A, DeltaA] = {
     val mockBuilder = implicitly[MockBuilder[ClientTier]]
     val newGraph =
-      ReplicationGraphServer.SenderBehavior(
-        state.rep,
-        deltas.rep,
-        state.graph.replicationGraph + deltas.graph.replicationGraph)
+      state.graph.replicationGraph.map2(deltas.graph.replicationGraph) {
+        (srg, drg) =>
+          ReplicationGraphServer.SenderBehavior(state.rep,
+                                                deltas.rep,
+                                                srg + drg)
+      }
     mockBuilder.IBehavior(state.graph
                             .mergeGraphAndEffect(deltas.graph)
                             .ws

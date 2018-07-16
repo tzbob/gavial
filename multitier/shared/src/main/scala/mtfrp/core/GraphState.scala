@@ -1,100 +1,87 @@
 package mtfrp.core
 
+import cats.Eval
 import cats.kernel.Semigroup
 import hokko.core.Engine
 
-trait GraphState {
+import cats.implicits._
 
-  val requiresWebSockets: Boolean
-  val replicationGraph: ReplicationGraph
-  val effect: Engine => Unit
+case class GraphState(
+    requiresWebSockets: Eval[Boolean],
+    replicationGraph: Eval[ReplicationGraph],
+    effect: Eval[Engine => Unit],
+    history: Eval[Stream[GraphState]]
+) {
 
-  val history: Stream[GraphState]
+  lazy val ws: GraphState =
+    copy(requiresWebSockets = Eval.now(true),
+         history = Eval.later(this #:: history.value))
 
-  def copy(
-      requiresWebSockets: => Boolean = requiresWebSockets,
-      replicationGraph: => ReplicationGraph = replicationGraph,
-      effect: => Engine => Unit = effect
-  ): GraphState = {
-    lazy val rws  = requiresWebSockets
-    lazy val rg   = replicationGraph
-    lazy val eff  = effect
-    lazy val h    = history
-    lazy val self = this
+  lazy val xhr: GraphState =
+    copy(Eval.now(false), history = Eval.later(this #:: history.value))
 
-    new GraphState {
-      lazy val history: Stream[GraphState]        = self #:: h
-      lazy val effect: Engine => Unit             = eff
-      lazy val replicationGraph: ReplicationGraph = rg
-      lazy val requiresWebSockets: Boolean        = rws
-    }
-  }
+  def mergeGraphAndEffect(other: GraphState): GraphState =
+    GraphState(
+      requiresWebSockets,
+      replicationGraph.map2(other.replicationGraph)(_ + _),
+      effect.map2(other.effect) { (eff1, eff2) => (e: Engine) =>
+        eff1(e)
+        eff2(e)
+      },
+      history =
+        Eval.later(this #:: other #:: history.value #::: other.history.value)
+    )
 
-  lazy val ws: GraphState  = copy(requiresWebSockets = true)
-  lazy val xhr: GraphState = copy(requiresWebSockets = false)
+  def withEffect(eff: Eval[Engine => Unit]): GraphState =
+    copy(effect = effect.map2(eff) { (effOld, effNew) => (e: Engine) =>
+      effOld(e); effNew(e)
+    }, history = Eval.later(this #:: history.value))
 
-  def mergeGraphAndEffect(other: GraphState): GraphState = {
-    val self = this
-    new GraphState {
-      lazy val history: Stream[GraphState] =
-        self #:: other #:: self.history #::: other.history
-      lazy val effect: Engine => Unit = (e: Engine) => {
-        self.effect(e);
-        other.effect(e)
-      }
-      lazy val replicationGraph: ReplicationGraph =
-        self.replicationGraph + other.replicationGraph
-      val requiresWebSockets: Boolean = self.requiresWebSockets
-    }
-  }
-
-  def withEffect(eff: Engine => Unit): GraphState =
-    copy(effect = (e: Engine) => {
-      effect(e); eff(e)
-    })
-
-  def withGraph(replicationGraph: => ReplicationGraph): GraphState =
-    copy(replicationGraph = replicationGraph)
+  def withGraph(replicationGraph: Eval[ReplicationGraph]): GraphState =
+    copy(replicationGraph = replicationGraph,
+         history = Eval.later(this #:: history.value))
 }
 
 object GraphState {
-  def delayed(graphState: => GraphState): GraphState = new GraphState {
-    def shortCutIfLooped[A](f: GraphState => A): A =
-      if (this.history contains this) f(GraphState.default)
-      else f(graphState)
+  def delayed(graphState: => GraphState): GraphState = {
+    lazy val delayedState = graphState
+    lazy val delayedWrapper: GraphState = GraphState(
+      Eval.defer(shortCut(_.requiresWebSockets)),
+      Eval.defer(shortCut(_.replicationGraph)),
+      Eval.defer(shortCut(_.effect)),
+      Eval.defer(Eval.later(delayedState #:: delayedState.history.value))
+    )
 
-    lazy val history: Stream[GraphState] = graphState #:: graphState.history
-    lazy val effect: Engine => Unit      = shortCutIfLooped(_.effect)
+    def shortCut[A](f: GraphState => Eval[A]) = Eval.later {
+      if (delayedState.history.value.contains(delayedWrapper))
+        f(GraphState.default).value
+      else f(delayedState).value
+    }
 
-    lazy val replicationGraph: ReplicationGraph = shortCutIfLooped(
-      _.replicationGraph)
-    lazy val requiresWebSockets: Boolean = shortCutIfLooped(
-      _.requiresWebSockets)
+    delayedWrapper
   }
 
   private def combine(f: (Boolean, Boolean) => Boolean) =
     new Semigroup[GraphState] {
       def combine(x: GraphState, y: GraphState): GraphState =
-        new GraphState {
-          lazy val history: Stream[GraphState] =
-            x #:: y #:: x.history #::: y.history
-          lazy val effect: Engine => Unit = (e: Engine) => {
-            x.effect(e); y.effect(e)
-          }
-          lazy val replicationGraph: ReplicationGraph =
-            x.replicationGraph.combine(y.replicationGraph)
-          lazy val requiresWebSockets: Boolean =
-            f(x.requiresWebSockets, y.requiresWebSockets)
-        }
+        GraphState(
+          x.requiresWebSockets.map2(y.requiresWebSockets)(f),
+          x.replicationGraph.map2(y.replicationGraph)(_ + _),
+          x.effect.map2(y.effect) { (xE, yE) => (e: Engine) =>
+            xE(e)
+            yE(e)
+          },
+          x.history.map2(y.history)(x #:: y #:: _ #::: _)
+        )
     }
 
   val all: Semigroup[GraphState] = combine(_ && _)
   val any: Semigroup[GraphState] = combine(_ || _)
 
-  val default = new GraphState {
-    lazy val history: Stream[GraphState]        = Stream.empty
-    lazy val effect: Engine => Unit             = _ => ()
-    lazy val replicationGraph: ReplicationGraph = ReplicationGraph.start
-    lazy val requiresWebSockets: Boolean        = false
-  }
+  val default = GraphState(
+    Eval.now(false),
+    Eval.now(ReplicationGraph.start),
+    Eval.now((_: Engine) => ()),
+    Eval.now(Stream.empty)
+  )
 }

@@ -12,8 +12,10 @@ class SessionIBehavior[A, DeltaA] private[core] (
     private[core] val underlying: AppIBehavior[Map[Client, A],
                                                Map[Client, DeltaA]],
     private[core] val initial: A,
-    private[core] val graph: GraphState
+    graphByName: GraphState
 ) extends IBehavior[SessionTier, A, DeltaA] {
+  private[core] val graph = graphByName
+
   private[core] def accumulator: (A, DeltaA) => A =
     IBehavior.transformFromMap(underlying.accumulator)
 

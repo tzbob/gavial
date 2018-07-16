@@ -1,6 +1,6 @@
 package mtfrp.core
 
-import mtfrp.core.ReplicationGraph.{EventClientToServer, EventServerToClient}
+import mtfrp.core.ReplicationGraph.{BehaviorServerToClient, EventClientToServer, EventServerToClient}
 import org.scalatest.WordSpec
 
 class DBehaviorTest extends WordSpec {
@@ -14,29 +14,34 @@ class DBehaviorTest extends WordSpec {
         val count      = emptyEvent.fold(0)(_ + _).toDBehavior
 
         val delayed: AppDBehavior[Int] = AppDBehavior.delayed(result, 200)
-        val result = count.map2(delayed)(_ + _)
+        val result                     = count.map2(delayed)(_ + _)
 
         val client = SessionEvent.toClient(AppEvent.toSession(result.changes))
       }
 
       assert(TestA.result.initial === 200)
       assert(
-        TestA.client.graph.replicationGraph.isInstanceOf[EventServerToClient])
+        TestA.client.graph.replicationGraph.value
+          .isInstanceOf[EventServerToClient])
 
       object TestC {
-        val emptyEvent = ClientEvent.source[Int]
-        val count      = emptyEvent.fold(0)(_ + _).toDBehavior
+        val previousPlayerPosition: ClientDBehavior[Int] =
+          ClientDBehavior.delayed(position, 0)
 
-        val delayed: ClientDBehavior[Int] = ClientDBehavior.delayed(result, 200)
+        val pickRight: (Int, Int) => Int = (_, a) => a
 
-        val result = count.map2(delayed)(_ + _)
+        val direction =
+          ClientIBehavior
+            .toSession(previousPlayerPosition.toIBehavior(pickRight)(pickRight))
+            .toDBehavior
 
-        val sess = ClientEvent.toSession(result.changes)
+        val position: ClientDBehavior[Int] =
+          SessionDBehavior.toClient(direction.map(_ * 3))
       }
 
-      assert(TestC.result.initial === 200)
       assert(
-        TestC.sess.graph.replicationGraph.isInstanceOf[EventClientToServer])
+        TestC.position.graph.replicationGraph.value
+          .isInstanceOf[BehaviorServerToClient])
 
       object TestS {
         val emptyEvent = SessionEvent.empty[Int]
@@ -52,7 +57,8 @@ class DBehaviorTest extends WordSpec {
 
       assert(TestS.result.underlying.initial === Map.empty)
       assert(
-        TestS.client.graph.replicationGraph.isInstanceOf[EventServerToClient])
+        TestS.client.graph.replicationGraph.value
+          .isInstanceOf[EventServerToClient])
     }
   }
 }
