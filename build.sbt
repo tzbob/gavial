@@ -43,7 +43,6 @@ lazy val multitier = crossProject
   .jvmSettings(
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
-      "de.heikoseeberger" %% "akka-http-circe"   % "1.17.0",
       "com.typesafe.akka" %% "akka-http"         % "10.0.9",
       "com.typesafe.akka" %% "akka-http-testkit" % "10.0.9" % Test
     )

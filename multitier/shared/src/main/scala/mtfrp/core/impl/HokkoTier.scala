@@ -17,12 +17,7 @@ trait HokkoTier extends Tier {
 trait HokkoBuilder[T <: HokkoTier] {
   def event[A](rep: core.Event[A], graph: GraphState): T#Event[A]
   def behavior[A](rep: core.CBehavior[A], graph: GraphState): T#Behavior[A]
-  def DBehavior[A](rep: core.DBehavior[A],
-                   initial: A,
-                   graph: => GraphState): T#DBehavior[A]
-  def IBehavior[A, DeltaA](
-      rep: core.IBehavior[A, DeltaA],
-      initial: A,
-      graph: GraphState,
-      accumulator: (A, DeltaA) => A): T#IBehavior[A, DeltaA]
+  def DBehavior[A](rep: core.DBehavior[A], graph: => GraphState): T#DBehavior[A]
+  def IBehavior[A, DeltaA](rep: core.IBehavior[A, DeltaA],
+                           graph: GraphState): T#IBehavior[A, DeltaA]
 }

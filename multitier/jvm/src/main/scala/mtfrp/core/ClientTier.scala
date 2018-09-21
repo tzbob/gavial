@@ -1,10 +1,12 @@
 package mtfrp
 package core
 
-import hokko.core.Engine
+import cats.data.Ior
+import hokko.core.{Engine, Thunk}
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock._
+import slogging.LazyLogging
 
 class ClientEvent[A] private[core] (graph: GraphState)
     extends MockEvent[ClientTier, A](graph)
@@ -30,29 +32,32 @@ object ClientEvent extends MockEventObject[ClientTier] with ClientEventObject {
   }
 
   def sourceWithEngineEffect[A](
-      eff: (Engine, (A => Unit)) => Unit): ClientEventSource[A] = {
+      eff: (A => Unit) => Unit): ClientEventSource[A] = {
     new ClientEventSource(GraphState.default)
   }
 }
 
-class ClientBehavior[A] private[core] (graph: GraphState)
-    extends MockBehavior[ClientTier, A](graph)
+class ClientBehavior[A] private[core] (graph: GraphState, initial: Thunk[A])
+    extends MockBehavior[ClientTier, A](graph, initial)
 
-class ClientBehaviorSink[A] private[core] (graph: GraphState)
-    extends ClientBehavior[A](graph)
+class ClientBehaviorSink[A] private[core] (graph: GraphState, initial: Thunk[A])
+    extends ClientBehavior[A](graph, initial)
 
 object ClientBehavior extends MockBehaviorObject[ClientTier] {
   def sink[A](default: A): ClientBehaviorSink[A] = new ClientBehaviorSink(
-    GraphState.default
+    GraphState.default,
+    Thunk.eager(default)
   )
 }
 
 class ClientDBehavior[A] private[core] (
     graph: => GraphState,
-    initial: A
+    initial: => A
 ) extends MockDBehavior[ClientTier, A](graph, initial)
 
-object ClientDBehavior extends MockDBehaviorObject[ClientTier]
+object ClientDBehavior
+    extends MockDBehaviorObject[ClientTier]
+    with ClientDBehaviorObject
 
 class ClientIBehavior[A, DeltaA] private[core] (
     graph: GraphState,
@@ -60,10 +65,13 @@ class ClientIBehavior[A, DeltaA] private[core] (
     initial: A
 ) extends MockIBehavior[ClientTier, A, DeltaA](graph, accumulator, initial)
 
-object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
+object ClientIBehavior
+    extends MockIBehaviorObject
+    with ClientIBehaviorObject
+    with LazyLogging {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
       clientBeh: ClientIBehavior[A, DeltaA])
-    : AppIBehavior[Map[Client, A], (Client, DeltaA)] = {
+    : AppIBehavior[Map[Client, A], Ior[(Client, DeltaA), ClientChange]] = {
     val hokkoBuilder = implicitly[HokkoBuilder[AppTier]]
 
     val deltas = hokko.core.Event.source[(Client, DeltaA)]
@@ -72,14 +80,25 @@ object ClientIBehavior extends MockIBehaviorObject with ClientIBehaviorObject {
     }
     val state = clientBeh.graph.withGraph(newGraph)
 
-    val transformed =
-      IBehavior.transformFromNormal(clientBeh.accumulator)
-    val defaultValue =
-      Map.empty[Client, A].withDefaultValue(clientBeh.initial)
+    val clientChangesIor =
+      AppEvent.clientChanges.rep.map(Ior.right[(Client, DeltaA), ClientChange])
+    val deltasChanges: hokko.core.Event[Ior[(Client, DeltaA), ClientChange]] =
+      deltas
+        .map(Ior.left[(Client, DeltaA), ClientChange])
+        .unionWith(clientChangesIor) {
+          case (Ior.Left(pulse), Ior.Right(change)) => Ior.Both(pulse, change)
+          case _ =>
+            throw new RuntimeException("Impossible union crash")
+        }
 
-    val behavior = deltas.fold(defaultValue)(transformed)
+    val defaultValue = Map.empty[Client, A]
+    val accumulator = IBehavior.transformFromNormalToClientChange(
+      clientBeh.initial,
+      clientBeh.accumulator)
 
-    hokkoBuilder.IBehavior(behavior, defaultValue, state, transformed)
+    val behavior = deltasChanges.fold(defaultValue)(accumulator)
+
+    hokkoBuilder.IBehavior(behavior, state)
   }
 }
 

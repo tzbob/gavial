@@ -5,10 +5,11 @@ import mtfrp.core._
 
 class HokkoDBehavior[T <: HokkoTier: HokkoBuilder, A](
     private[core] val rep: core.DBehavior[A],
-    private[core] val initial: A,
     graphByName: => GraphState
 ) extends DBehavior[T, A] {
   private[core] lazy val graph = graphByName
+
+  private[core] lazy val initial = rep.init
 
   private[this] val builder = implicitly[HokkoBuilder[T]]
 
@@ -17,7 +18,6 @@ class HokkoDBehavior[T <: HokkoTier: HokkoBuilder, A](
 
   def reverseApply[B](fb: T#DBehavior[A => B]): T#DBehavior[B] =
     builder.DBehavior(fb.rep ap this.rep,
-                      fb.initial(this.initial),
                       GraphState.any.combine(graph, fb.graph))
 
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C] =
@@ -28,7 +28,7 @@ class HokkoDBehavior[T <: HokkoTier: HokkoBuilder, A](
 
   def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
       patch: (A, DeltaA) => A): T#IBehavior[A, DeltaA] =
-    builder.IBehavior(rep.toIBehavior(diff)(patch), initial, graphByName, patch)
+    builder.IBehavior(rep.toIBehavior(diff)(patch), graphByName)
 }
 
 abstract class HokkoDBehaviorObject[
@@ -36,10 +36,9 @@ abstract class HokkoDBehaviorObject[
     extends DBehaviorObject[SubT] {
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[SubT]]
   def constant[A](x: A): SubT#DBehavior[A] =
-    hokkoBuilder.DBehavior(core.DBehavior.constant(x), x, GraphState.default)
+    hokkoBuilder.DBehavior(core.DBehavior.constant(x), GraphState.default)
 
-  def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A] =
-    hokkoBuilder.DBehavior(core.DBehavior.delayed(db.rep, init),
-                           init,
-                           GraphState.delayed(db.graph))
+  def delayed[A](db: => SubT#DBehavior[A]): SubT#Behavior[A] =
+    hokkoBuilder.behavior(core.DBehavior.delayed(db.rep),
+                          GraphState.delayed(db.graph))
 }

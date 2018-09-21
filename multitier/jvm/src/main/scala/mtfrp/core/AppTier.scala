@@ -42,12 +42,11 @@ object AppEvent extends HokkoEventObject with AppEventObject {
   def source[A]: AppEventSource[A] =
     new AppEventSource(core.Event.source[A], GraphState.default)
 
-  def sourceWithEngineEffect[A](
-      eff: (Engine, (A => Unit)) => Unit): AppEventSource[A] = {
+  def sourceWithEngineEffect[A](eff: (A => Unit) => Unit): AppEventSource[A] = {
     val src = core.Event.source[A]
     new AppEventSource(src, GraphState.default.withEffect {
       Eval.later { (e: Engine) =>
-        eff(e, a => e.fire(Seq(src -> a)))
+        eff(a => e.fire(Seq(src -> a)))
       }
     })
   }
@@ -62,9 +61,8 @@ object AppBehavior extends HokkoBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDBehavior[A] private[core] (
     rep: core.DBehavior[A],
-    initial: A,
     graph: => GraphState
-) extends HokkoDBehavior[AppTier, A](rep, initial, graph)
+) extends HokkoDBehavior[AppTier, A](rep, graph)
 
 object AppDBehavior
     extends HokkoDBehaviorObject[AppTier]
@@ -72,10 +70,8 @@ object AppDBehavior
 
 class AppIBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
-    initial: A,
-    graph: GraphState,
-    accumulator: (A, DeltaA) => A
-) extends HokkoIBehavior[AppTier, A, DeltaA](rep, initial, graph, accumulator)
+    graph: GraphState
+) extends HokkoIBehavior[AppTier, A, DeltaA](rep, graph)
 
 object AppIBehavior
     extends HokkoIBehaviorObject[AppTier]

@@ -7,6 +7,7 @@ import hokko.core.tc
 import hokko.syntax.SnapshottableSyntax
 
 trait DBehavior[T <: Tier, A] {
+  private[core] val initial: A
   private[core] val graph: GraphState
 
   def changes(): T#Event[A]
@@ -16,21 +17,20 @@ trait DBehavior[T <: Tier, A] {
 
   def reverseApply[B](fb: T#DBehavior[A => B]): T#DBehavior[B]
   def snapshotWith[B, C](ev: T#Event[B])(f: (A, B) => C): T#Event[C]
-
 }
 
 trait DBehaviorObject[SubT <: Tier { type T = SubT }]
     extends ApplicativeSyntax
     with FunctorSyntax
     with ApplySyntax
-    with SnapshottableSyntax[SubT#Event, SubT#DBehavior] {
+    with SnapshottableSyntax[SubT#DBehavior] {
   def constant[A](x: A): SubT#DBehavior[A]
 
-  def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A]
+  def delayed[A](db: => SubT#DBehavior[A]): SubT#Behavior[A]
 
   implicit val mtfrpDBehaviorInstances
-    : tc.Snapshottable[SubT#DBehavior, SubT#Event] with Applicative[
-      SubT#DBehavior] =
+    : tc.Snapshottable[SubT#DBehavior, SubT#Event]
+      with Applicative[SubT#DBehavior] =
     new tc.Snapshottable[SubT#DBehavior, SubT#Event]
     with Applicative[SubT#DBehavior] {
       override def snapshotWith[A, B, C](

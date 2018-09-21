@@ -88,10 +88,9 @@ object ReplicationGraphServer {
     }
   }
 
-  case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph)
+  case class ReceiverEvent[A: Decoder](dependency: ReplicationGraph,
+                                       source: HC.EventSource[(Client, A)])
       extends ReplicationGraph.EventClientToServer {
-    val source: HC.EventSource[(Client, A)] = HC.Event.source
-
     def pulse(c: Client, msg: Message): Option[Pulse] = {
       val decoded: Result[A] = msg.payload.as[A]
       decoded.right.toOption.map { a =>
@@ -101,9 +100,11 @@ object ReplicationGraphServer {
   }
 
   case class ReceiverBehavior[A: Decoder, DeltaA: Decoder](
-      dependency: ReplicationGraph)
+      dependency: ReplicationGraph,
+      source: HC.EventSource[(Client, DeltaA)])
       extends ReplicationGraph.BehaviorClientToServer {
-    override val deltas: ReceiverEvent[DeltaA] = ReceiverEvent(dependency)
+    override val deltas: ReceiverEvent[DeltaA] =
+      ReceiverEvent(dependency, source)
   }
 
 }

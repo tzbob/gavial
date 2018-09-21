@@ -16,18 +16,20 @@ trait MyMain extends FrpMain {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
 
-    val (route, engine) = if (ui.graph.requiresWebSockets) {
+    val g = ui.graph
+
+    val (route, engine) = if (g.requiresWebSockets.value) {
       println("Application requires web sockets.")
-      val creator = new WebSocketRouteCreator(ui.graph.replicationGraph)
+      val creator = new WebSocketRouteCreator(g.replicationGraph.value)
       (creator.route, creator.engine)
     } else {
       println("Application does not require web sockets, running on XHR.")
-      val creator = new XhrRouteCreator(ui.graph.replicationGraph)
+      val creator = new XhrRouteCreator(g.replicationGraph.value)
       (creator.route, creator.engine)
     }
 
     // Run engine effects
-    ui.graph.effect(engine)
+    g.effect.value.foreach(_ apply engine)
 
     implicit val system       = ActorSystem("my-system")
     implicit val materializer = ActorMaterializer()

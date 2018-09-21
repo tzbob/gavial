@@ -1,12 +1,14 @@
 package mtfrp.core.mock
 
+import hokko.core.Thunk
 import mtfrp.core._
 
 class MockDBehavior[T <: MockTier: MockBuilder, A](
-    graphByName: GraphState,
-    private[core] val initial: A
+    graphByName: => GraphState,
+    initialByName: => A
 ) extends DBehavior[T, A] {
-  private[core] lazy val graph = graphByName
+  private[core] lazy val graph   = graphByName
+  private[core] lazy val initial = initialByName
 
   private[this] val mockBuilder = implicitly[MockBuilder[T]]
 
@@ -21,7 +23,7 @@ class MockDBehavior[T <: MockTier: MockBuilder, A](
     mockBuilder.event(ev.graph.mergeGraphAndEffect(this.graph))
 
   def toBehavior: T#Behavior[A] =
-    mockBuilder.behavior(graph)
+    mockBuilder.behavior(graph, Thunk.eager(initial))
 
   def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
       patch: (A, DeltaA) => A): T#IBehavior[A, DeltaA] =
@@ -36,6 +38,6 @@ abstract class MockDBehaviorObject[
   def constant[A](x: A): SubT#DBehavior[A] =
     mockBuilder.DBehavior(GraphState.default, x)
 
-  def delayed[A](db: => SubT#DBehavior[A], init: A): SubT#DBehavior[A] =
-    mockBuilder.DBehavior(GraphState.delayed(db.graph), init)
+  def delayed[A](db: => SubT#DBehavior[A]): SubT#Behavior[A] =
+    mockBuilder.behavior(GraphState.delayed(db.graph), Thunk(db.initial))
 }

@@ -1,5 +1,6 @@
 package mtfrp.core
 
+import cats.data.Ior
 import hokko.{core => HC}
 import io.circe._
 
@@ -23,11 +24,22 @@ class SessionEvent[A] private[core] (
 
   def fold[B](initial: B)(f: (B, A) => B): SessionTier#IBehavior[B, A] = {
     val initialMap = Map.empty[Client, B]
-    val newRep = underlying.fold(initialMap) {
-      (stateMap: Map[Client, B], newEvent: Map[Client, A]) =>
-        SessionIBehavior.accumulatorFunWithInitial(stateMap, newEvent, initial)(
-          f)
+
+    val changes = underlying.map { change =>
+      change -> Set.empty[ClientChange]
     }
+
+    val clientChanges = AppEvent.clientChanges.map { change =>
+      Map.empty[Client, A] -> Set(change)
+    }
+
+    val allChanges = changes.unionWith(clientChanges) { (l, r) =>
+      (l._1, r._2)
+    }
+
+    val newRep = allChanges.fold(initialMap)(
+      IBehavior.transformFromNormalToSetClientChangeMap(initial, f)
+    )
 
     new SessionIBehavior(newRep, initial, this.graph)
   }

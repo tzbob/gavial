@@ -25,9 +25,8 @@ trait AppIBehaviorObject {
 
   def toSession[A, DeltaA](
       appBehavior: AppIBehavior[A, DeltaA]): SessionIBehavior[A, DeltaA] = {
-
     val appBehaviorBroadcast
-      : AppIBehavior[Map[Client, A], Map[Client, DeltaA]] =
+      : AppIBehavior[Map[Client, A], (Map[Client, DeltaA], Set[ClientChange])] =
       appBehavior.map2(AppIBehavior.clients) { (a: A, clients: Set[Client]) =>
         clients.map(_ -> a).toMap
       } { (a: A, clients: Set[Client], ior: Ior[DeltaA, ClientChange]) =>
@@ -35,21 +34,16 @@ trait AppIBehaviorObject {
           case Ior.Left(deltaA) =>
             val deltaMap = clients.map(_ -> deltaA).toMap
             if (deltaMap.isEmpty) None
-            else Option(deltaMap)
-          case Ior.Right(_) =>
-            Option(Map.empty[Client, DeltaA])
+            else Option(deltaMap -> Set.empty[ClientChange])
+          case Ior.Right(change) =>
+            Option(Map.empty[Client, DeltaA] -> Set(change))
           case Ior.Both(deltaA, cc) =>
             val deltaMap = clients.map(_ -> deltaA).toMap
-            val ccedMap = cc match {
-              case Connected(c)    => deltaMap + (c -> deltaA)
-              case Disconnected(c) => deltaMap - c
-            }
-            Option(ccedMap)
+            Option(deltaMap -> Set(cc))
         }
-      } {
-        case (aMap: Map[Client, A], daMap: Map[Client, DeltaA]) =>
-          aMap.map2(daMap)(appBehavior.accumulator)
-      }
+      }(IBehavior.transformFromNormalToSetClientChangeMap(
+        appBehavior.initial,
+        appBehavior.accumulator))
 
     new SessionIBehavior(appBehaviorBroadcast,
                          appBehavior.initial,

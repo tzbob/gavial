@@ -54,21 +54,15 @@ object ClientBehavior extends HokkoBehaviorObject[ClientTier] {
 
 class ClientDBehavior[A] private[core] (
     rep: core.DBehavior[A],
-    initial: A,
     graph: => GraphState
-) extends HokkoDBehavior[ClientTier, A](rep, initial, graph)
+) extends HokkoDBehavior[ClientTier, A](rep, graph)
 
 object ClientDBehavior extends HokkoDBehaviorObject[ClientTier]
 
 class ClientIBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
-    initial: A,
-    graph: GraphState,
-    accumulator: (A, DeltaA) => A
-) extends HokkoIBehavior[ClientTier, A, DeltaA](rep,
-                                                  initial,
-                                                  graph,
-                                                  accumulator)
+    graph: GraphState
+) extends HokkoIBehavior[ClientTier, A, DeltaA](rep, graph)
 
 object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](

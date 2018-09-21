@@ -10,33 +10,46 @@ import slogging.LazyLogging
 
 class SessionIBehavior[A, DeltaA] private[core] (
     private[core] val underlying: AppIBehavior[Map[Client, A],
-                                               Map[Client, DeltaA]],
+                                               (Map[Client, DeltaA],
+                                                Set[ClientChange])],
     private[core] val initial: A,
     graphByName: GraphState
 ) extends IBehavior[SessionTier, A, DeltaA] {
   private[core] val graph = graphByName
 
   private[core] def accumulator: (A, DeltaA) => A =
-    IBehavior.transformFromMap(underlying.accumulator)
+    (acc, delta) =>
+      underlying
+        .accumulator(Map(ClientGenerator.static -> acc),
+                     Map(ClientGenerator.static -> delta) -> Set.empty)
+        .apply(ClientGenerator.static)
 
   def changes: SessionTier#Event[A] =
     new SessionEvent(underlying.changes, this.graph)
 
   def deltas: SessionTier#Event[DeltaA] =
-    new SessionEvent(underlying.deltas, this.graph)
+    new SessionEvent(
+      underlying.deltas.map {
+        (change: (Map[Client, DeltaA], Set[ClientChange])) =>
+          val (map, changes) = change
+          map -- changes.collect { case Disconnected(c) => c }
+      },
+      this.graph
+    )
 
   def map[B, DeltaB](fa: A => B)(fb: DeltaA => DeltaB)(
       accumulator: (B, DeltaB) => B): SessionTier#IBehavior[B, DeltaB] = {
 
-    val newUnderlying: AppIBehavior[Map[Client, B], Map[Client, DeltaB]] =
+    val newUnderlying
+      : AppIBehavior[Map[Client, B], (Map[Client, DeltaB], Set[ClientChange])] =
       underlying.map { (aMap: Map[Client, A]) =>
         aMap.mapValues(fa)
-      } { (deltaMap: Map[Client, DeltaA]) =>
-        deltaMap.mapValues(fb)
-      } { (accF: Map[Client, B], newF: Map[Client, DeltaB]) =>
-        val accumulated = accF.map2(newF)(accumulator)
-        accF ++ accumulated
-      }
+      } { (change: (Map[Client, DeltaA], Set[ClientChange])) =>
+        change.swap.map(_.mapValues(fb)).swap
+      }(
+        IBehavior.transformFromNormalToSetClientChangeMap(fa(this.initial),
+                                                          accumulator)
+      )
 
     new SessionIBehavior(newUnderlying, fa(initial), this.graph)
   }
@@ -45,40 +58,44 @@ class SessionIBehavior[A, DeltaA] private[core] (
       valueFun: (A, B) => C)(
       deltaFun: (A, B, Ior[DeltaA, DeltaB]) => Option[DeltaC])(
       foldFun: (C, DeltaC) => C): SessionTier#IBehavior[C, DeltaC] = {
-    val newUnderlying: AppIBehavior[Map[Client, C], Map[Client, DeltaC]] =
+    val v = valueFun(this.initial, b.initial)
+
+    val newUnderlying
+      : AppIBehavior[Map[Client, C], (Map[Client, DeltaC], Set[ClientChange])] =
       underlying.map2(b.underlying) {
         (aMap: Map[Client, A], bMap: Map[Client, B]) =>
           aMap.map2(bMap)(valueFun)
       } {
         (aMap: Map[Client, A],
          bMap: Map[Client, B],
-         ior: Ior[Map[Client, DeltaA], Map[Client, DeltaB]]) =>
-          val iorMap = ior match {
-            case Ior.Left(deltaAMap) =>
-              deltaAMap.mapValues(Ior.left)
+         ior: Ior[(Map[Client, DeltaA], Set[ClientChange]),
+                  (Map[Client, DeltaB], Set[ClientChange])]) =>
+          val (iorMap, changes) = ior match {
+            case Ior.Left((deltaAMap, changes)) =>
+              deltaAMap.mapValues(Ior.left) -> changes
 
-            case Ior.Right(deltaBMap) =>
-              deltaBMap.mapValues(Ior.right)
+            case Ior.Right((deltaBMap, changes)) =>
+              deltaBMap.mapValues(Ior.right) -> changes
 
-            case Ior.Both(deltaAMap, deltaBMap) =>
+            case Ior.Both((deltaAMap, changes1), (deltaBMap, changes2)) =>
               val iorLeft  = deltaAMap.mapValues(Ior.left)
               val iorRight = deltaBMap.mapValues(Ior.right)
               val iorBoth  = deltaAMap.map2(deltaBMap)(Ior.both)
 
-              iorLeft ++ iorRight ++ iorBoth
+              (iorLeft ++ iorRight ++ iorBoth) -> (changes1 ++ changes2)
           }
 
-          val deltaMappedMap = (aMap, bMap, iorMap).mapN(deltaFun)
-          val filteredMap    = deltaMappedMap.filter(_._2.isDefined)
+          val result: (Map[Client, DeltaC], Set[ClientChange]) =
+            (aMap, bMap, iorMap)
+              .mapN(deltaFun)
+              .collect { case (k, Some(v)) => k -> v } -> changes
 
-          if (filteredMap.isEmpty) None
-          else Option(filteredMap.mapValues(_.get))
-      } { (cMap: Map[Client, C], deltaCMap: Map[Client, DeltaC]) =>
-        cMap.map2(deltaCMap)(foldFun)
-      }
+          if (result._1.isEmpty && result._2.isEmpty) None
+          else Option(result)
+      }(IBehavior.transformFromNormalToSetClientChangeMap(v, foldFun))
 
     new SessionIBehavior(newUnderlying,
-                         valueFun(this.initial, b.initial),
+                         v,
                          GraphState.any.combine(this.graph, b.graph))
   }
 
@@ -97,9 +114,7 @@ object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
     val underlying = AppIBehavior.clients.map { clients =>
       clients.map(_ -> x).toMap
     } { clientChange =>
-      // FIXME, this gives an update that should be invisible to session
-      // behaviors
-      Map.empty[Client, B]
+      (Map.empty[Client, B], Set(clientChange))
     } { (cMap, _) =>
       cMap
     }
@@ -107,36 +122,8 @@ object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
   }
 
   def toApp[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])
-    : AppIBehavior[Map[Client, A],
-                   (Map[Client, DeltaA], Option[ClientChange])] = {
-    sessionB.underlying.map2(AppIBehavior.clients) {
-      (aMap: Map[Client, A], clients: Set[Client]) =>
-        val toDelete = aMap.keySet -- clients
-        aMap -- toDelete
-    } {
-      (_: Map[Client, A],
-       _: Set[Client],
-       ior: Ior[Map[Client, DeltaA], ClientChange]) =>
-        ior match {
-          case Ior.Left(iorMap) =>
-            if (iorMap.isEmpty) None else Option(iorMap -> None)
-          case Ior.Right(cc) =>
-            Option(Map.empty[Client, DeltaA] -> Option(cc))
-          case Ior.Both(iorMap, cc) =>
-            Option(iorMap -> Option(cc))
-        }
-    } {
-      case (aMap: Map[Client, A],
-            (daMap: Map[Client, DeltaA], ccOpt: Option[ClientChange])) =>
-        val newAMap = aMap.map2(daMap)(sessionB.accumulator)
-
-        ccOpt match {
-          case Some(Disconnected(c)) => newAMap - c
-          case Some(Connected(c))    => newAMap + (c -> sessionB.initial)
-          case _                     => newAMap
-        }
-    }
-  }
+    : AppIBehavior[Map[Client, A], (Map[Client, DeltaA], Set[ClientChange])] =
+    sessionB.underlying
 
   def toClient[A, DeltaA](sessionB: SessionIBehavior[A, DeltaA])(
       implicit dec: Decoder[A],
@@ -149,7 +136,7 @@ object SessionIBehavior extends IBehaviorObject[SessionTier] with LazyLogging {
           map.get(c).getOrElse(sessionB.initial)
         }
     val deltas: AppEvent[Client => Option[DeltaA]] =
-      sessionB.underlying.deltas.map(_.get _)
+      sessionB.deltas.underlying.map(_.get _)
 
     Replicator.toClient(sessionB.initial, sessionB.accumulator, state, deltas)
   }

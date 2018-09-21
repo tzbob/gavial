@@ -1,10 +1,12 @@
 package mtfrp.core
 
 import cats.implicits._
+import hokko.core.Thunk
 
 class SessionBehavior[A] private[core] (
     private[core] val underlying: AppBehavior[Map[Client, A]],
-    graphByName: => GraphState
+    graphByName: => GraphState,
+    private[core] val initial: Thunk[A]
 ) extends Behavior[SessionTier, A] {
   private[core] val graph = graphByName
 
@@ -18,7 +20,9 @@ class SessionBehavior[A] private[core] (
       }
 
     val revApped = underlying.reverseApply(mapFb)
-    new SessionBehavior(revApped, GraphState.any.combine(this.graph, fb.graph))
+    new SessionBehavior(revApped,
+                        GraphState.any.combine(this.graph, fb.graph),
+                        initial.flatMap(a => fb.initial.map(f => f(a))))
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
@@ -29,6 +33,17 @@ class SessionBehavior[A] private[core] (
     }
     new SessionEvent(newUnder, ev.graph.mergeGraphAndEffect(this.graph))
   }
+
+  override def snapshotWith[B, C](ev: SessionDBehavior[B])(
+      f: (A, B) => C): SessionDBehavior[C] = {
+    val newUnder = underlying.snapshotWith(ev.underlying) {
+      (cfA: Map[Client, A], cfB: Map[Client, B]) =>
+        cfA.map2(cfB)(f)
+    }
+    new SessionDBehavior(newUnder,
+                         this.initial.map(a => f(a, ev.initial)).force,
+                         ev.graph.mergeGraphAndEffect(this.graph))
+  }
 }
 
 object SessionBehavior extends BehaviorObject[SessionTier] {
@@ -37,7 +52,7 @@ object SessionBehavior extends BehaviorObject[SessionTier] {
       clients.map(_ -> x).toMap
     }
     val state = clientMap.graph.xhr
-    new SessionBehavior(clientMap, state)
+    new SessionBehavior(clientMap, state, Thunk.eager(x))
   }
 
   def toApp[A](sb: SessionBehavior[A]): AppBehavior[Map[Client, A]] =
@@ -48,6 +63,6 @@ object SessionBehavior extends BehaviorObject[SessionTier] {
       clients.map(c => c -> c).toMap
     }
     val state = clientMap.graph.ws
-    new SessionBehavior(clientMap, state)
+    new SessionBehavior(clientMap, state, Thunk.eager(ClientGenerator.static))
   }
 }

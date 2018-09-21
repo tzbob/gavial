@@ -1,5 +1,6 @@
 package mtfrp
 
+import hokko.core.Thunk
 import mtfrp.core.impl.HokkoBuilder
 import mtfrp.core.mock.MockBuilder
 
@@ -17,29 +18,27 @@ package object core {
 
     def DBehavior[A](
         rep: core.DBehavior[A],
-        initial: A,
         graph: => GraphState
     ): AppTier#DBehavior[A] =
-      new AppDBehavior(rep, initial, graph)
+      new AppDBehavior(rep, graph)
 
     def IBehavior[A, DeltaA](
         rep: core.IBehavior[A, DeltaA],
-        initial: A,
-        graph: GraphState,
-        accumulator: (A, DeltaA) => A
+        graph: GraphState
     ): AppTier#IBehavior[A, DeltaA] =
-      new AppIBehavior(rep, initial, graph, accumulator)
+      new AppIBehavior(rep, graph)
   }
 
   implicit object ClientBuilder extends MockBuilder[ClientTier] {
     def event[A](graph: GraphState): ClientTier#Event[A] =
       new ClientEvent(graph)
 
-    def behavior[A](graph: GraphState): ClientTier#Behavior[A] =
-      new ClientBehavior(graph)
+    def behavior[A](graph: GraphState,
+                    initial: Thunk[A]): ClientTier#Behavior[A] =
+      new ClientBehavior(graph, initial)
 
     def DBehavior[A](graph: => GraphState,
-                     initial: A): ClientTier#DBehavior[A] =
+                     initial: => A): ClientTier#DBehavior[A] =
       new ClientDBehavior(graph, initial)
 
     def IBehavior[A, DeltaA](

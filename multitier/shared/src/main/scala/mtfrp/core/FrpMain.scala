@@ -5,7 +5,7 @@ trait FrpMain {
 
   def noWebSockets(
       interface: ClientDBehavior[UI.HTML]): ClientDBehavior[UI.HTML] = {
-    if (interface.graph.requiresWebSockets)
+    if (interface.graph.requiresWebSockets.value)
       throw new RuntimeException(
         """
            Your application requires web sockets. This typically means that

@@ -9,7 +9,7 @@ import cats.implicits._
 case class GraphState(
     requiresWebSockets: Eval[Boolean],
     replicationGraph: Eval[ReplicationGraph],
-    effect: Eval[Engine => Unit],
+    effect: Eval[Set[Engine => Unit]],
     history: Eval[Stream[GraphState]]
 ) {
 
@@ -21,21 +21,11 @@ case class GraphState(
     copy(Eval.now(false), history = Eval.later(this #:: history.value))
 
   def mergeGraphAndEffect(other: GraphState): GraphState =
-    GraphState(
-      requiresWebSockets,
-      replicationGraph.map2(other.replicationGraph)(_ + _),
-      effect.map2(other.effect) { (eff1, eff2) => (e: Engine) =>
-        eff1(e)
-        eff2(e)
-      },
-      history =
-        Eval.later(this #:: other #:: history.value #::: other.history.value)
-    )
+    GraphState.any.combine(this, other)
 
   def withEffect(eff: Eval[Engine => Unit]): GraphState =
-    copy(effect = effect.map2(eff) { (effOld, effNew) => (e: Engine) =>
-      effOld(e); effNew(e)
-    }, history = Eval.later(this #:: history.value))
+    copy(effect = effect.map2(eff) { _ + _ },
+         history = Eval.later(this #:: history.value))
 
   def withGraph(replicationGraph: Eval[ReplicationGraph]): GraphState =
     copy(replicationGraph = replicationGraph,
@@ -67,21 +57,17 @@ object GraphState {
         GraphState(
           x.requiresWebSockets.map2(y.requiresWebSockets)(f),
           x.replicationGraph.map2(y.replicationGraph)(_ + _),
-          x.effect.map2(y.effect) { (xE, yE) => (e: Engine) =>
-            xE(e)
-            yE(e)
-          },
+          x.effect.map2(y.effect) { _ ++ _ },
           x.history.map2(y.history)(x #:: y #:: _ #::: _)
         )
     }
 
-  val all: Semigroup[GraphState] = combine(_ && _)
   val any: Semigroup[GraphState] = combine(_ || _)
 
   val default = GraphState(
     Eval.now(false),
     Eval.now(ReplicationGraph.start),
-    Eval.now((_: Engine) => ()),
+    Eval.now(Set.empty),
     Eval.now(Stream.empty)
   )
 }

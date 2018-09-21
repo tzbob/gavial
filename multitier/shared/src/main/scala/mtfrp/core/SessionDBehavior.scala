@@ -1,38 +1,44 @@
 package mtfrp.core
 
+import hokko.core.Thunk
 import io.circe.{Decoder, Encoder}
 
 class SessionDBehavior[A] private[core] (
     private[core] val underlying: AppDBehavior[Map[Client, A]],
-    private[core] val initial: A,
+    initialByName: => A,
     graphByName: => GraphState
 ) extends DBehavior[SessionTier, A] {
+  private[core] lazy val initial = initialByName
   private[core] lazy val graph = graphByName
 
   override def changes(): SessionEvent[A] =
     new SessionEvent(underlying.changes, graph)
 
   override def toBehavior: SessionTier#Behavior[A] =
-    new SessionBehavior(underlying.toBehavior, graph)
+    new SessionBehavior(underlying.toBehavior, graph, Thunk.eager(initial))
 
   override def toIBehavior[DeltaA](diff: (A, A) => DeltaA)(
-      patch: (A, DeltaA) => A): SessionIBehavior[A, DeltaA] =
+      patch: (A, DeltaA) => A): SessionIBehavior[A, DeltaA] = {
+
     new SessionIBehavior(
-      underlying.toIBehavior {
-        (mapOld: Map[Client, A], mapNow: Map[Client, A]) =>
-          val keys = mapOld.keySet intersect mapNow.keySet
-          keys.map { key =>
-            key -> diff(mapOld(key), mapNow(key))
-          }.toMap
-      } { (map, deltaMap) =>
-        val keys = map.keySet intersect deltaMap.keySet
-        keys.map { key =>
-          key -> patch(map(key), deltaMap(key))
-        }.toMap
-      },
+      underlying.toIBehavior { (mOld: Map[Client, A], mNow: Map[Client, A]) =>
+        val disconnects = (mOld.keySet -- mNow.keys).map(Disconnected.apply)
+        val connects    = (mNow.keySet -- mOld.keys).map(Connected.apply)
+
+        val clientChanges: Set[ClientChange] = disconnects ++ connects
+        val newMap: Map[Client, DeltaA] = mNow.keySet
+          .intersect(mOld.keySet)
+          .map { client =>
+            client -> diff(mNow(client), mOld(client))
+          }
+          .toMap
+
+        newMap -> clientChanges
+      }(IBehavior.transformFromNormalToSetClientChangeMap(initial, patch)),
       initial,
       graph
     )
+  }
 
   override def reverseApply[B](
       fb: SessionTier#DBehavior[A => B]): SessionTier#DBehavior[B] = {
@@ -49,7 +55,7 @@ class SessionDBehavior[A] private[core] (
     val revApped = underlying.reverseApply(mapFb)
     new SessionDBehavior(revApped,
                          fb.initial(initial),
-                         GraphState.all.combine(graph, fb.graph))
+                         GraphState.any.combine(graph, fb.graph))
   }
 
   override def snapshotWith[B, C](ev: SessionEvent[B])(
@@ -75,12 +81,9 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
     new SessionDBehavior(clientMap, x, state)
   }
 
-  override def delayed[A](db: => SessionDBehavior[A],
-                          init: A): SessionDBehavior[A] = {
-    val delayedApp = AppDBehavior.delayed(
-      db.underlying,
-      Map.empty[Client, A].withDefaultValue(init))
-    new SessionDBehavior[A](delayedApp, init, delayedApp.graph)
+  override def delayed[A](db: => SessionDBehavior[A]): SessionBehavior[A] = {
+    val delayedApp = AppDBehavior.delayed(db.underlying)
+    new SessionBehavior[A](delayedApp, delayedApp.graph, Thunk(db.initial))
   }
 
   def toApp[A](sb: SessionDBehavior[A]): AppDBehavior[Map[Client, A]] =
@@ -94,4 +97,10 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
       .toDBehavior
   }
 
+  val client: SessionDBehavior[Client] = {
+    val clientsApp = AppDBehavior.clients.map { cs =>
+      cs.map(c => c -> c).toMap
+    }
+    new SessionDBehavior(clientsApp, ClientGenerator.fresh, clientsApp.graph.ws)
+  }
 }

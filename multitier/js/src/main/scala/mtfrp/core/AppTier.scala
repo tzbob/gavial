@@ -1,8 +1,9 @@
 package mtfrp
 package core
 
+import cats.Eval
 import hokko.core
-import hokko.core.Engine
+import hokko.core.{Engine, Thunk}
 import io.circe._
 import mtfrp.core.impl.{HokkoAsync, HokkoBuilder}
 import mtfrp.core.mock._
@@ -22,10 +23,12 @@ object AppEvent extends MockEventObject with AppEventObject {
       implicit da: Decoder[A],
       ea: Encoder[A]): ClientEvent[A] = {
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
-    val newGraph =
-      ReplicationGraphClient.ReceiverEvent(appEv.graph.replicationGraph)
+    val src          = hokko.core.Event.source[A]
+    val newGraph = appEv.graph.replicationGraph.map { rg =>
+      ReplicationGraphClient.ReceiverEvent(rg, src)
+    }
     val state = appEv.graph.ws.withGraph(newGraph)
-    hokkoBuilder.event(newGraph.source, state)
+    hokkoBuilder.event(src, state)
   }
 
   val start: AppEvent[ClientChange] =
@@ -36,20 +39,19 @@ object AppEvent extends MockEventObject with AppEventObject {
   def source[A]: AppEventSource[A] =
     new AppEventSource(GraphState.default)
 
-  def sourceWithEngineEffect[A](
-      eff: (Engine, (A => Unit)) => Unit): AppEventSource[A] = {
+  def sourceWithEngineEffect[A](eff: (A => Unit) => Unit): AppEventSource[A] = {
     new AppEventSource(GraphState.default)
   }
 }
 
-class AppBehavior[A] private[core] (graph: GraphState)
-    extends MockBehavior[AppTier, A](graph)
+class AppBehavior[A] private[core] (graph: GraphState, initial: Thunk[A])
+    extends MockBehavior[AppTier, A](graph, initial)
 
 object AppBehavior extends MockBehaviorObject[AppTier] with AppBehaviorObject
 
 class AppDBehavior[A] private[core] (
     graph: => GraphState,
-    initial: A
+    initial: => A
 ) extends MockDBehavior[AppTier, A](graph, initial)
 
 object AppDBehavior extends MockDBehaviorObject[AppTier] with AppDBehaviorObject
@@ -74,12 +76,12 @@ object AppIBehavior
 
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
-    val newGraph =
-      ReplicationGraphClient.ReceiverBehavior[A, DeltaA](
-        appBeh.graph.replicationGraph)
+    val deltas = hokko.core.Event.source[DeltaA]
+    val resets = hokko.core.Event.source[A]
 
-    val deltas = newGraph.deltas.source
-    val resets = newGraph.resets
+    val newGraph = appBeh.graph.replicationGraph.map { rg =>
+      ReplicationGraphClient.ReceiverBehavior[A, DeltaA](rg, resets, deltas)
+    }
 
     // TODO: Improve with an initial value reader/injector
     /*
@@ -98,9 +100,7 @@ object AppIBehavior
         }
 
     hokkoBuilder.IBehavior(replicatedBehavior,
-                           init,
-                           appBeh.graph.ws.withGraph(newGraph),
-                           transformedAccumulator)
+                           appBeh.graph.ws.withGraph(newGraph))
   }
 }
 
