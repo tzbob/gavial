@@ -17,6 +17,8 @@ trait GavialApp extends FrpMain {
   def host: String
   def port: Int
 
+  val resourceDirectory: String = ""
+
   def main(args: Array[String]): Unit = {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
