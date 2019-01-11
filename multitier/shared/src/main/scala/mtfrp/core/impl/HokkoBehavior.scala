@@ -32,4 +32,7 @@ abstract class HokkoBehaviorObject[
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[SubT]]
   def constant[A](x: A): SubT#Behavior[A] =
     hokkoBuilder.behavior(core.CBehavior.constant(x), GraphState.default)
+
+  def fromPoll[A](f: () => A): SubT#Behavior[A] =
+    hokkoBuilder.behavior(core.CBehavior.fromPoll(f), GraphState.default)
 }

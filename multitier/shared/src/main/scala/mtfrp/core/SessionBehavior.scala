@@ -55,6 +55,9 @@ object SessionBehavior extends BehaviorObject[SessionTier] {
     new SessionBehavior(clientMap, state, Thunk.eager(x))
   }
 
+  override def fromPoll[A](f: () => A): SessionBehavior[A] =
+    AppBehavior.toSession(AppBehavior.fromPoll(f))
+
   def toApp[A](sb: SessionBehavior[A]): AppBehavior[Map[Client, A]] =
     sb.underlying
 

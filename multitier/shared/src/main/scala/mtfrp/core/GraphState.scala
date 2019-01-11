@@ -58,8 +58,16 @@ object GraphState {
           x.requiresWebSockets.map2(y.requiresWebSockets)(f),
           x.replicationGraph.map2(y.replicationGraph)(_ + _),
           x.effect.map2(y.effect) { _ ++ _ },
-          x.history.map2(y.history)(x #:: y #:: _ #::: _)
+          x.history.map2(y.history)((xh, yh) =>
+            x #:: y #:: breadthFirstStreamCombine(xh, yh))
         )
+
+      private def breadthFirstStreamCombine[A](a: Stream[A],
+                                               b: Stream[A]): Stream[A] =
+        a match {
+          case first #:: rest => first #:: breadthFirstStreamCombine(b, rest)
+          case _              => b
+        }
     }
 
   val any: Semigroup[GraphState] = combine(_ || _)

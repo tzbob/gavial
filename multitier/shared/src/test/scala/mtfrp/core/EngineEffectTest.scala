@@ -18,7 +18,7 @@ class EngineEffectTest extends WordSpec {
       val res = GraphState.default.mergeGraphAndEffect(effed)
 
       assert(!test)
-      res.effect.value(null)
+      res.effect.value.foreach(_(null))
 
       assert(test)
     }
@@ -33,7 +33,7 @@ class EngineEffectTest extends WordSpec {
       val res = GraphState.any.combine(effed, GraphState.default)
 
       assert(!test)
-      res.effect.value(null)
+      res.effect.value.foreach(_(null))
       assert(test)
     }
   }

@@ -12,6 +12,8 @@ import scala.concurrent.duration.Duration
 
 trait MyMain extends FrpMain {
 
+  val resourceDirectory: String = ""
+
   def main(args: Array[String]): Unit = {
     val renderedHtml = ui.initial
     val index        = createIndex(renderedHtml)
@@ -45,7 +47,7 @@ trait MyMain extends FrpMain {
   }
 
   val resourceRoute: Route = pathPrefix("") {
-    getFromResourceDirectory("")
+    getFromResourceDirectory(resourceDirectory)
   }
 
   import UI.html.all._
@@ -54,7 +56,7 @@ trait MyMain extends FrpMain {
       get {
         val rawHtml = UI.html.tags.html(
           head(headExtensions),
-          body(id := "mtfrpcontent", content)
+          body(div(id := "mtfrpcontent", content))
         )
         complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, rawHtml.render))
       }

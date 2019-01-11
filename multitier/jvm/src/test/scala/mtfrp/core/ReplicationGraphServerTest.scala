@@ -1,5 +1,6 @@
 package mtfrp.core
 
+import cats.data.Ior
 import hokko.core.Engine
 import hokko.{core => HC}
 import mtfrp.core.ReplicationGraph.Pulse
@@ -92,7 +93,8 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
       ClientEvent.toAppWithClient(ev)
     }
 
-    def makeAppBehavior: AppIBehavior[Map[Client, Int], (Client, Int)] = {
+    def makeAppBehavior
+      : AppIBehavior[Map[Client, Int], Ior[(Client, Int), ClientChange]] = {
       val ev =
         new ClientIBehavior[Int, Int](GraphState.default, _ + _, 0)
       ClientIBehavior.toApp(ev)
@@ -111,11 +113,11 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
 
       val fresh = ClientGenerator.fresh
 
-      val changePulse = router(fresh, Message.fromPayload(2)(20))
+      val changePulse = router(fresh, Message.fromPayload(1)(20))
       val eventPulse  = router(fresh, Message.fromPayload(3)(30))
 
       assert(changePulse.get._2 === (fresh -> 20))
-      assert(eventPulse.get._2 === (fresh  -> 30))
+      assert(eventPulse.get._2 === (fresh -> 30))
     }
 
     "not execute a fold multiple times for resets in Session.toClient" in {

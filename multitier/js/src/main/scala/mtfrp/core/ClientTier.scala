@@ -1,6 +1,8 @@
 package mtfrp
 package core
 
+import cats.Eval
+import cats.data.Ior
 import hokko.core
 import hokko.core.Engine
 import io.circe.{Decoder, Encoder}
@@ -18,9 +20,11 @@ object ClientEvent extends HokkoEventObject with ClientEventObject {
   private[core] def toAppWithClient[A: Decoder: Encoder](
       clientEv: ClientEvent[A]): AppEvent[(Client, A)] = {
     val mockBuilder = implicitly[MockBuilder[AppTier]]
-    val newGraph = ReplicationGraphClient.SenderEvent(
-      clientEv.rep,
-      clientEv.graph.replicationGraph)
+
+    val newGraph = clientEv.graph.replicationGraph.map { rg =>
+      ReplicationGraphClient.SenderEvent(clientEv.rep, rg)
+    }
+
     val graph = clientEv.graph.withGraph(newGraph)
     mockBuilder.event(graph)
   }
@@ -29,10 +33,12 @@ object ClientEvent extends HokkoEventObject with ClientEventObject {
     new ClientEventSource(core.Event.source[A], GraphState.default)
 
   def sourceWithEngineEffect[A](
-      eff: (Engine, (A => Unit)) => Unit): ClientEventSource[A] = {
+      eff: (A => Unit) => Unit): ClientEventSource[A] = {
     val src = core.Event.source[A]
-    new ClientEventSource(src, GraphState.default.withEffect { (e: Engine) =>
-      eff(e, a => e.fire(Seq(src -> a)))
+    new ClientEventSource(src, GraphState.default.withEffect {
+      Eval.later { (e: Engine) =>
+        eff(a => e.fire(Seq(src -> a)))
+      }
     })
   }
 }
@@ -57,7 +63,9 @@ class ClientDBehavior[A] private[core] (
     graph: => GraphState
 ) extends HokkoDBehavior[ClientTier, A](rep, graph)
 
-object ClientDBehavior extends HokkoDBehaviorObject[ClientTier]
+object ClientDBehavior
+    extends HokkoDBehaviorObject[ClientTier]
+    with ClientDBehaviorObject
 
 class ClientIBehavior[A, DeltaA] private[core] (
     rep: core.IBehavior[A, DeltaA],
@@ -67,17 +75,19 @@ class ClientIBehavior[A, DeltaA] private[core] (
 object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
   def toApp[A: Decoder: Encoder, DeltaA: Decoder: Encoder](
       clientBeh: ClientIBehavior[A, DeltaA])
-    : AppIBehavior[Map[Client, A], (Client, DeltaA)] = {
+    : AppIBehavior[Map[Client, A], Ior[(Client, DeltaA), ClientChange]] = {
     val mockBuilder = implicitly[MockBuilder[AppTier]]
 
-    val newGraph = ReplicationGraphClient.SenderBehavior(
-      clientBeh.rep,
-      clientBeh.graph.replicationGraph)
+    val newGraph = clientBeh.graph.replicationGraph.map { rg =>
+      ReplicationGraphClient.SenderBehavior(clientBeh.rep, rg)
+    }
 
-    val transformed = IBehavior.transformFromNormal(clientBeh.accumulator)
+    val transformed = IBehavior.transformFromNormalToClientChange(
+      clientBeh.rep.initial,
+      clientBeh.accumulator)
     // FIXME: relying on Map.default is dangerous
     val defaultValue =
-      Map.empty[Client, A].withDefaultValue(clientBeh.initial)
+      Map.empty[Client, A].withDefaultValue(clientBeh.rep.initial)
 
     mockBuilder.IBehavior(clientBeh.graph.withGraph(newGraph),
                           transformed,
@@ -87,4 +97,5 @@ object ClientIBehavior extends HokkoIBehaviorObject with ClientIBehaviorObject {
 
 object ClientAsync extends HokkoAsync[ClientTier]
 
-final class ClientTier extends HokkoTier with ClientTierLike
+class ClientTier extends HokkoTier with ClientTierLike
+final object ClientTier extends ClientTier

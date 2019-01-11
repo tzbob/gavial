@@ -21,7 +21,9 @@ trait BehaviorObject[SubT <: Tier { type T = SubT }]
     with FunctorSyntax
     with ApplySyntax
     with SnapshottableSyntax[SubT#Behavior] {
+
   def constant[A](x: A): SubT#Behavior[A]
+  def fromPoll[A](f: () => A): SubT#Behavior[A]
 
   implicit val mtfrpDBehaviorSnapshotCBehavior
     : tc.Snapshottable[SubT#Behavior, SubT#DBehavior] =

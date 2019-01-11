@@ -1,5 +1,7 @@
 package mtfrp.core
 
+import cats.data.Ior
+import hokko.core.EventSource
 import hokko.{core => HC}
 import mtfrp.core.ReplicationGraph.Pulse
 import org.scalatest.WordSpec
@@ -11,14 +13,14 @@ class ReplicationGraphClientTest extends WordSpec {
     src -> ClientEvent.toAppWithClient(ClientEvent(src, GraphState.default))
   }
 
-  def makeAppBehavior
-    : (HC.EventSource[Int], AppIBehavior[Map[Client, Int], (Client, Int)]) = {
+  def makeAppBehavior: (EventSource[Int],
+                        AppIBehavior[Map[Client, Int],
+                                     Ior[(Client, Int), ClientChange]]) = {
     val src = HC.Event.source[Int]
     src -> makeCountingBehavior(ClientEvent(src, GraphState.default))
   }
 
-  def makeCountingBehavior(beh1src: ClientEvent[Int])
-    : AppIBehavior[Map[Client, Int], (Client, Int)] = {
+  def makeCountingBehavior(beh1src: ClientEvent[Int]) = {
     ClientIBehavior.toApp(beh1src.fold(0)(_ + _))
   }
 
@@ -45,7 +47,7 @@ class ReplicationGraphClientTest extends WordSpec {
       val combined = beh1.snapshotWith(ev1) { _ -> _ }
 
       val router: Message => Option[Pulse] =
-        new ReplicationGraphClient(combined.graph.replicationGraph).inputEventRouter
+        new ReplicationGraphClient(combined.graph.replicationGraph.value).inputEventRouter
 
       val resetPulse  = router(Message.fromPayload(1)(10))
       val changePulse = router(Message.fromPayload(2)(20))
@@ -64,7 +66,7 @@ class ReplicationGraphClientTest extends WordSpec {
 
       val combined = beh1.toDBehavior.sampledBy(ev1)
       val exitEvent =
-        new ReplicationGraphClient(combined.graph.replicationGraph).exitEvent
+        new ReplicationGraphClient(combined.graph.replicationGraph.value).exitEvent
 
       val engine = HC.Engine.compile(exitEvent)
 

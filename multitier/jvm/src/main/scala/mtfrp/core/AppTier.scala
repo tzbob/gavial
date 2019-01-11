@@ -96,4 +96,5 @@ object AppIBehavior
 
 object AppAsync extends HokkoAsync[AppTier]
 
-final class AppTier extends HokkoTier with AppTierLike
+class AppTier extends HokkoTier with AppTierLike
+final object AppTier extends AppTier

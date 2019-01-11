@@ -20,6 +20,6 @@ trait ClientIBehaviorObject {
             clientBeh.initial,
             clientBeh.accumulator))
 
-    new SessionIBehavior(ib, clientBeh.initial, clientBeh.graph)
+    new SessionIBehavior(ib, clientBeh.initial, ib.graph)
   }
 }

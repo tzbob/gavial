@@ -9,7 +9,7 @@ class SessionDBehavior[A] private[core] (
     graphByName: => GraphState
 ) extends DBehavior[SessionTier, A] {
   private[core] lazy val initial = initialByName
-  private[core] lazy val graph = graphByName
+  private[core] lazy val graph   = graphByName
 
   override def changes(): SessionEvent[A] =
     new SessionEvent(underlying.changes, graph)

@@ -24,16 +24,16 @@ object ReplicationGraph {
   import scala.language.existentials
   type Pulse = (HC.EventSource[T], T) forSome { type T }
 
-  private[core] def toList(graph: ReplicationGraph): List[ReplicationGraph] = {
+  private[core] def toSet(graph: ReplicationGraph): Set[ReplicationGraph] = {
     val rest = graph match {
       case `start` =>
-        Nil
+        Set.empty[ReplicationGraph]
       case Combined(nodes) =>
-        nodes.map(ReplicationGraph.toList).toList.flatten
+        nodes.map(ReplicationGraph.toSet).flatten.toSet
       case e: HasDependency =>
-        ReplicationGraph.toList(e.dependency)
+        ReplicationGraph.toSet(e.dependency)
     }
-    graph :: rest
+    rest + graph
   }
 
   def combine(graphs: Seq[ReplicationGraph]): ReplicationGraph =

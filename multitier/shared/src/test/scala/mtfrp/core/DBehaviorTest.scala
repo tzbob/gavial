@@ -1,94 +1,114 @@
 package mtfrp.core
 
-import mtfrp.core.ReplicationGraph.{
-  BehaviorServerToClient,
-  EventClientToServer,
-  EventServerToClient
-}
+import mtfrp.core.ReplicationGraph.{BehaviorClientToServer, EventServerToClient}
+import mtfrp.core.macros.{client, server}
 import org.scalatest.WordSpec
+
 import scala.language.reflectiveCalls
 
 class DBehaviorTest extends WordSpec {
 
   "DBehaviors" can {
 
-    "be defined recursively" in {
-      def testAndReset(a: GraphState)(testObj: { var test: Boolean }) = {
-        assert(!testObj.test)
-        a.effect.value(null)
-        assert(testObj.test)
-        testObj.test = false
-      }
+    def testAndReset(a: GraphState)(testObj: { var test: Boolean }) = {
+      assert(!testObj.test)
+      a.effect.value.foreach(_(null))
+      assert(testObj.test)
+      testObj.test = false
+    }
+
+    "be defined recursively in the App tier" in {
 
       object TestA {
         var test = false
         val emptyEvent = AppEvent.sourceWithEngineEffect[Int] { fire =>
           test = true
         }
-        val count = emptyEvent.fold(0)(_ + _).toDBehavior
+        val count = emptyEvent.fold(1)(_ + _).toDBehavior
 
-        val delayed: AppDBehavior[Int] = AppDBehavior.delayed(result)
-        val result                     = count.map2(delayed)(_ + _)
+        val delayed: AppBehavior[Int] = AppDBehavior.delayed(result)
+        val dd = delayed
+          .sampledBy(emptyEvent: AppEvent[Int])
+          .fold(10)(_ + _)
+          .toDBehavior
+        val result = dd.map2(count)(_ + _)
 
         val client = SessionEvent.toClient(AppEvent.toSession(result.changes))
       }
 
-      assert(TestA.result.initial === 200)
+      assert(TestA.result.initial === 11)
       assert(
         TestA.client.graph.replicationGraph.value
           .isInstanceOf[EventServerToClient])
 
-      testAndReset(TestA.emptyEvent.graph)(TestA)
-      testAndReset(TestA.count.graph)(TestA)
-      testAndReset(TestA.result.graph)(TestA)
-      testAndReset(TestA.client.graph)(TestA)
+      @server val _ = {
+        testAndReset(TestA.emptyEvent.graph)(TestA)
+        testAndReset(TestA.count.graph)(TestA)
+        testAndReset(TestA.result.graph)(TestA)
+        testAndReset(TestA.client.graph)(TestA)
+      }
+    }
 
+    "be defined recursively in the Client tier" in {
       object TestC {
         var test = false
-        val emptyEvent = ClientEvent.sourceWithEngineEffect[Int] { (fire) =>
+        val emptyEvent = ClientEvent.sourceWithEngineEffect[Int] { fire =>
           test = true
         }
-        val count =
-          ClientIBehavior.toSession(emptyEvent.fold(0)(_ + _)).toDBehavior
+        val count = emptyEvent.fold(1)(_ + _).toDBehavior
 
-        val previousPlayerPosition: ClientDBehavior[Int] =
-          ClientDBehavior.delayed(position)
+        val delayed: ClientBehavior[Int] = ClientDBehavior.delayed(result)
+        val dd = delayed
+          .sampledBy(emptyEvent: ClientEvent[Int])
+          .fold(10)(_ + _)
+          .toDBehavior
+        val result = dd.map2(count)(_ + _)
 
-        val pickRight: (Int, Int) => Int = (_, a) => a
+        val client = ClientDBehavior.toSession(result)
 
-        val direction =
-          ClientIBehavior
-            .toSession(previousPlayerPosition.toIBehavior(pickRight)(pickRight))
-            .toDBehavior
+//        val emptyEvent = ClientEvent.sourceWithEngineEffect[Int] { (fire) =>
+//          test = true
+//        }
+//        val count        = emptyEvent.fold(0)(_ + _).toDBehavior
+//        val sessionCount = ClientDBehavior.toSession(count)
+//
+//        val previousPlayerPosition: ClientBehavior[Int] =
+//          ClientDBehavior.delayed(position)
+//
+//        val direction =
+//          ClientDBehavior.toSession(previousPlayerPosition.sampledBy(count))
+//
+//        val position: ClientDBehavior[Int] =
+//          SessionDBehavior.toClient(direction.map2(sessionCount)(_ * _))
 
-        val position: ClientDBehavior[Int] =
-          SessionDBehavior.toClient(direction.map2(count)(_ * _))
+        assert(
+          TestC.client.graph.replicationGraph.value
+            .isInstanceOf[BehaviorClientToServer])
+
+        @client val _ = {
+          testAndReset(TestC.count.graph)(TestC)
+          testAndReset(TestC.delayed.graph)(TestC)
+          testAndReset(TestC.dd.graph)(TestC)
+          testAndReset(TestC.result.graph)(TestC)
+          testAndReset(TestC.client.graph)(TestC)
+        }
       }
-
-      assert(
-        TestC.position.graph.replicationGraph.value
-          .isInstanceOf[BehaviorServerToClient])
-
-      testAndReset(TestC.emptyEvent.graph)(TestC)
-      testAndReset(TestC.count.graph)(TestC)
-      testAndReset(TestC.position.graph)(TestC)
-
-      object TestS {
-        val emptyEvent = SessionEvent.empty[Int]
-        val count      = emptyEvent.fold(0)(_ + _).toDBehavior
-
-        val delayed: SessionDBehavior[Int] =
-          SessionDBehavior.delayed(result)
-
-        val result = count.map2(delayed)(_ + _)
-
-        val client = SessionEvent.toClient(result.changes)
-      }
-
-      assert(TestS.result.underlying.initial === Map.empty)
-      assert(
-        TestS.client.graph.replicationGraph.value
-          .isInstanceOf[EventServerToClient])
+//      object TestS {
+//        val emptyEvent = SessionEvent.empty[Int]
+//        val count      = emptyEvent.fold(0)(_ + _).toDBehavior
+//
+//        val delayed: SessionBehavior[Int] =
+//          SessionDBehavior.delayed(result)
+//
+//        val result = delayed.snapshotWith(count)(_ + _)
+//
+//        val client = SessionEvent.toClient(result.changes)
+//      }
+//
+//      assert(TestS.result.underlying.initial === Map.empty)
+//      assert(
+//        TestS.client.graph.replicationGraph.value
+//          .isInstanceOf[EventServerToClient])
     }
   }
 }

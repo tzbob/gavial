@@ -4,6 +4,8 @@ import io.circe.{Decoder, Encoder}
 import hokko.core
 import mtfrp.core.impl.HokkoBuilder
 
+import cats.implicits._
+
 object Replicator {
 
   def toClient[A, DeltaA](
@@ -18,12 +20,15 @@ object Replicator {
 
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
-    val newGraph =
-      ReplicationGraphClient.ReceiverBehavior[A, DeltaA](
-        state.graph.replicationGraph + deltas.graph.replicationGraph)
+    val deltaSource = hokko.core.Event.source[DeltaA]
+    val resets      = hokko.core.Event.source[A]
 
-    val deltaSource = newGraph.deltas.source
-    val resets      = newGraph.resets
+    val newGraph =
+      state.graph.replicationGraph.map2(deltas.graph.replicationGraph) {
+        (srg, drg) =>
+          ReplicationGraphClient
+            .ReceiverBehavior[A, DeltaA](srg + drg, resets, deltaSource)
+      }
 
     // TODO: Improve with an initial value reader/injector
     /*

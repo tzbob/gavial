@@ -24,8 +24,8 @@ trait DBehaviorObject[SubT <: Tier { type T = SubT }]
     with FunctorSyntax
     with ApplySyntax
     with SnapshottableSyntax[SubT#DBehavior] {
-  def constant[A](x: A): SubT#DBehavior[A]
 
+  def constant[A](x: A): SubT#DBehavior[A]
   def delayed[A](db: => SubT#DBehavior[A]): SubT#Behavior[A]
 
   implicit val mtfrpDBehaviorInstances

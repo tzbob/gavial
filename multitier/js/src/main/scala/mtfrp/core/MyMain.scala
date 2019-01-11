@@ -12,15 +12,20 @@ import scala.scalajs.js
 
 trait MyMain extends js.JSApp with FrpMain with LazyLogging {
 
-  def main(): Unit = {
+  override def main(): Unit = {
+    setup()
+  }
+
+  def setup(): (Engine, EventManager) = {
     val rep      = ui.rep
     val behavior = rep.toCBehavior
     val manager  = new EventManager(ui.graph, Seq(behavior), Seq(rep.changes))
     val engine   = manager.engine
     applyHtml(engine, rep)
     // Run engine effects
-    ui.graph.effect(engine)
+    ui.graph.effect.value.foreach(_ apply engine)
     manager.start()
+    engine -> manager
   }
 
   def applyHtml(engine: Engine, behavior: HC.DBehavior[UI.HTML]): Unit = {
@@ -32,8 +37,7 @@ trait MyMain extends js.JSApp with FrpMain with LazyLogging {
     initialVDom match {
       case Some(vdom) =>
         def onLoad(x: Any) = {
-          val el = dom.document.getElementById("mtfrpcontent")
-
+          val el                     = dom.document.getElementById("mtfrpcontent")
           val domPatcher: DomPatcher = initialRendering(engine, vdom, el)
           patchDomOnChange(domPatcher, engine, behavior.changes)
         }
@@ -48,11 +52,8 @@ trait MyMain extends js.JSApp with FrpMain with LazyLogging {
   private def initialRendering(engine: Engine, vdom: UI.HTML, el: Element) = {
     val node       = vdom.render(engine)
     val domPatcher = new DomPatcher(node, Some(el))
-    logger.debug(s"Created DomPatcher $domPatcher to render $node on $el")
-
-    while (el.hasChildNodes()) el.removeChild(el.lastChild)
-    el.appendChild(domPatcher.parent.firstElementChild)
-    logger.debug(s"Attached ${domPatcher.parent} to $el")
+    logger.debug(
+      s"Created DomPatcher $domPatcher to render $node on ${el.outerHTML}")
     domPatcher
   }
 

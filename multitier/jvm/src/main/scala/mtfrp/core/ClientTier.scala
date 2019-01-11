@@ -104,4 +104,5 @@ object ClientIBehavior
 
 object ClientAsync extends MockAsync[ClientTier]
 
-final class ClientTier extends MockTier with ClientTierLike
+class ClientTier extends MockTier with ClientTierLike
+final object ClientTier extends ClientTier

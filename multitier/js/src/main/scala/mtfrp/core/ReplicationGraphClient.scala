@@ -5,16 +5,18 @@ import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder}
 import mtfrp.core.ReplicationGraph.Pulse
 import mtfrp.core.ReplicationGraphClient.{ReceiverBehavior, ReceiverEvent}
+import slogging.LazyLogging
 
-class ReplicationGraphClient(graph: ReplicationGraph) {
-  val graphList = ReplicationGraph.toList(graph)
+class ReplicationGraphClient(graph: ReplicationGraph) extends LazyLogging {
+  val graphList = ReplicationGraph.toSet(graph)
 
   val inputEventRouter: Message => Option[Pulse] = {
     val receivers =
       graphList.foldLeft(Map.empty[Int, Message => Option[Pulse]]) {
         (acc, node) =>
           node match {
-            case r: ReceiverEvent[_] => acc + (r.token -> r.pulse _)
+            case r: ReceiverEvent[_] =>
+              acc + (r.token -> r.pulse _)
             case r: ReceiverBehavior[_, _] =>
               val deltaAcc = acc + (r.deltas.token -> r.deltas.pulse _)
               deltaAcc + (r.token -> r.pulse _)
@@ -30,10 +32,16 @@ class ReplicationGraphClient(graph: ReplicationGraph) {
     // all senders that should be added to the exit event (events and deltas)
     val senders = graphList.collect {
       case s: ReplicationGraphClient.SenderEvent[_] =>
-        s.message
+        s.message.map { m =>
+          logger.trace(s"Sending $m for ${s.token} [Event]")
+          m
+        }
       case s: ReplicationGraphClient.SenderBehavior[_, _] =>
-        s.deltas.message
-    }
+        s.deltas.message.map { m =>
+          logger.trace(s"Sending $m for ${s.token} [Behavior]")
+          m
+        }
+    }.toSeq
     HC.Event.merge(senders)
   }
 }

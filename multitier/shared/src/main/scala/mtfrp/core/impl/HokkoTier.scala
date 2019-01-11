@@ -5,7 +5,8 @@ import mtfrp.core._
 import mtfrp.core.mock.MockTier
 
 trait HokkoTier extends Tier {
-  type T <: HokkoTier
+  type T <: HokkoTier with Tier.Aux[T]
+
   type Event[A] <: HokkoEvent[T, A]
   type Behavior[A] <: HokkoBehavior[T, A]
   type DBehavior[A] <: HokkoDBehavior[T, A]

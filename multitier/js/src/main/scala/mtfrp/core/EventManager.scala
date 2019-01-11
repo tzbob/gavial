@@ -7,14 +7,14 @@ class EventManager(graph: GraphState,
                    exitBehaviors: Seq[HC.CBehavior[_]],
                    exitEvents: Seq[HC.Event[_]])
     extends LazyLogging {
-  val rgc = new ReplicationGraphClient(graph.replicationGraph)
+  val rgc = new ReplicationGraphClient(graph.replicationGraph.value)
 
   private val primitives = (rgc.exitEvent :: exitEvents.toList) ::: exitBehaviors.toList
   logger.debug(s"Compiling Engine for $primitives")
   val engine = HC.Engine.compile(primitives)
 
   def start(): Unit = {
-    if (graph.requiresWebSockets) {
+    if (graph.requiresWebSockets.value) {
       println("Application requires Web Sockets.")
       val receiver = new EventReceiver(rgc, engine, new WsEventListener(ws => {
         val sender = new WsEventSender(rgc, engine, ws)

@@ -106,4 +106,5 @@ object AppIBehavior
 
 object AppAsync extends MockAsync[AppTier]
 
-final class AppTier extends MockTier with AppTierLike
+class AppTier extends MockTier with AppTierLike
+final object AppTier extends AppTier

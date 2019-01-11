@@ -49,7 +49,7 @@ class XhrRouteCreatorTest extends WordSpec with ScalatestRouteTest {
       val client   = ClientGenerator.static
 
       val one = creator.handleRequest(client, messages)
-      assert(one === Right(List(Message(3, 1.asJson))))
+      assert(one === Right(List(Message(4, 1.asJson))))
     }
   }
 

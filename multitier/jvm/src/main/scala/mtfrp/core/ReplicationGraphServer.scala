@@ -6,9 +6,10 @@ import io.circe.Decoder.Result
 import io.circe._
 import mtfrp.core.ReplicationGraph.Pulse
 import mtfrp.core.ReplicationGraphServer.{ReceiverBehavior, ReceiverEvent}
+import slogging.LazyLogging
 
-class ReplicationGraphServer(graph: ReplicationGraph) {
-  val graphList = ReplicationGraph.toList(graph)
+class ReplicationGraphServer(graph: ReplicationGraph) extends LazyLogging {
+  val graphList = ReplicationGraph.toSet(graph)
 
   val exitEvent: HC.Event[Client => Seq[Message]] = {
     // all senders that should be added to the exit event (events and deltas)
@@ -17,7 +18,7 @@ class ReplicationGraphServer(graph: ReplicationGraph) {
         s.message
       case s: ReplicationGraphServer.SenderBehavior[_, _] =>
         s.deltas.message
-    }
+    }.toSeq
 
     val mergedSenders = HC.Event.merge(senders)
 
@@ -59,8 +60,10 @@ class ReplicationGraphServer(graph: ReplicationGraph) {
         case r: ReceiverBehavior[_, _] => (r.deltas.token, r.deltas.pulse _)
       }.toMap
 
-    (c: Client, m: Message) =>
+    (c: Client, m: Message) => {
+      logger.trace(s"Recieving $m for ${m.id}")
       pulseMakers.get(m.id).flatMap(_ apply (c, m))
+    }
   }
 }
 

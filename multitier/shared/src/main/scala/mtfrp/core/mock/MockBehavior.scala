@@ -28,4 +28,7 @@ abstract class MockBehaviorObject[
   private[this] val mockBuilder = implicitly[MockBuilder[SubT]]
   def constant[A](x: A): SubT#Behavior[A] =
     mockBuilder.behavior(GraphState.default, Thunk.eager(x))
+
+  def fromPoll[A](f: () => A): SubT#Behavior[A] =
+    mockBuilder.behavior(GraphState.default, Thunk(f()))
 }
