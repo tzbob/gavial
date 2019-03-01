@@ -80,9 +80,9 @@ You can start SBT through the `sbt` command and simply issue the `run` command t
 
 Before the application is running it should tell you in which mode it is running; websockets or xhr. After starting up it says at which location it is available, by default at: http://localhost:8080/
 
-### Creating a counter
+## Creating a counter
 
-Let us expand the hello world template to a shared counter:
+Now that you know how to get a Gavial template up and running, let us expand the hello world template to a shared counter:
 
 ```scala
 val counterSource = ClientEvent.source[Int]
