@@ -12,6 +12,7 @@ class XhrEventSender(rgc: ReplicationGraphClient, engine: HC.Engine)
     extends LazyLogging {
 
   def start(url: String): Unit = {
+    // FIXME: Poll here for initial values
     engine.subscribeForPulses { pulses =>
       val pulse = pulses(rgc.exitEvent)
       pulse.foreach { messages =>

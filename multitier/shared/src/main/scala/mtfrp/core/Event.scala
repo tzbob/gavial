@@ -8,7 +8,7 @@ import hokko.core.tc
 trait Event[T <: Tier, A] {
   private[core] val graph: GraphState
 
-  def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A]
+  def foldI[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A]
 
   def unionWith(b: T#Event[A])(f: (A, A) => A): T#Event[A]
 
@@ -16,17 +16,21 @@ trait Event[T <: Tier, A] {
 }
 
 trait EventObject[SubT <: Tier { type T = SubT }]
-    extends hokko.syntax.EventSyntax[SubT#Event, SubT#IBehavior]
+    extends hokko.syntax.EventSyntax[SubT#Event, SubT#DBehavior, SubT#IBehavior]
     with FunctorSyntax {
   def empty[A]: SubT#Event[A]
   private[core] def apply[A](ev: HC.Event[A],
                              graphState: GraphState): SubT#Event[A]
 
-  implicit val mtfrpEventInstances: tc.Event[SubT#Event, SubT#IBehavior] =
-    new tc.Event[SubT#Event, SubT#IBehavior] {
+  implicit val mtfrpEventInstances
+    : tc.Event[SubT#Event, SubT#DBehavior, SubT#IBehavior] =
+    new tc.Event[SubT#Event, SubT#DBehavior, SubT#IBehavior] {
       override def fold[A, DeltaA](ev: SubT#Event[DeltaA], initial: A)(
+          f: (A, DeltaA) => A): SubT#DBehavior[A] =
+        ev.foldI(initial)(f).toDBehavior
+      override def foldI[A, DeltaA](ev: SubT#Event[DeltaA], initial: A)(
           f: (A, DeltaA) => A): SubT#IBehavior[A, DeltaA] =
-        ev.fold(initial)(f)
+        ev.foldI(initial)(f)
 
       override def unionWith[A](a: SubT#Event[A])(b: SubT#Event[A])(
           f: (A, A) => A): SubT#Event[A] = a.unionWith(b)(f)

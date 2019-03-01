@@ -10,9 +10,12 @@ import akka.stream.ActorMaterializer
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-trait MyMain extends FrpMain {
+trait GavialApp extends FrpMain {
 
-  val resourceDirectory: String = ""
+  def resourceDirectory: String = ""
+  def headExtensions: List[UI.HTML]
+  def host: String
+  def port: Int
 
   def main(args: Array[String]): Unit = {
     val renderedHtml = ui.initial
@@ -38,7 +41,7 @@ trait MyMain extends FrpMain {
 
     val totalRoute = route ~ index ~ resourceRoute
 
-    Http().bindAndHandle(totalRoute, "localhost", 8080)
+    Http().bindAndHandle(totalRoute, host, port)
     println(s"Server online at http://localhost:8080/")
 
     engine.fire(Seq((AppEvent.serverStart, ())))
@@ -62,6 +65,4 @@ trait MyMain extends FrpMain {
       }
     }
   }
-
-  val headExtensions: List[UI.HTML]
 }

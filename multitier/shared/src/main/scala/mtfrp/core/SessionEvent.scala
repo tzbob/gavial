@@ -22,7 +22,7 @@ class SessionEvent[A] private[core] (
     new SessionEvent(newUnderlying, this.graph)
   }
 
-  def fold[B](initial: B)(f: (B, A) => B): SessionTier#IBehavior[B, A] = {
+  def foldI[B](initial: B)(f: (B, A) => B): SessionTier#IBehavior[B, A] = {
     val initialMap = Map.empty[Client, B]
 
     val changes = underlying.map { change =>
@@ -37,7 +37,7 @@ class SessionEvent[A] private[core] (
       (l._1, r._2)
     }
 
-    val newRep = allChanges.fold(initialMap)(
+    val newRep = allChanges.foldI(initialMap)(
       IBehavior.transformFromNormalToSetClientChangeMap(initial, f)
     )
 

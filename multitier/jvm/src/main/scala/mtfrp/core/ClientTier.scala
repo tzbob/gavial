@@ -96,7 +96,7 @@ object ClientIBehavior
       clientBeh.initial,
       clientBeh.accumulator)
 
-    val behavior = deltasChanges.fold(defaultValue)(accumulator)
+    val behavior = deltasChanges.foldI(defaultValue)(accumulator)
 
     hokkoBuilder.IBehavior(behavior, state)
   }

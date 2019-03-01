@@ -10,7 +10,7 @@ import scala.scalajs.js
 
 class ScalaTagsPushTest extends WordSpec with Matchers {
 
-  def setupTestBody(main: => MyMain) = {
+  def setupTestBody(main: => GavialApp) = {
 
     val el = dom.document.body
     while (el.childElementCount > 1) el.removeChild(el.lastChild)
@@ -40,7 +40,7 @@ class ScalaTagsPushTest extends WordSpec with Matchers {
 
   "UI in Main" should {
     "read properties from HTML" in {
-      val exampleApp = new MyMain {
+      val exampleApp = new GavialApp {
         import UI.html.all._
 
         val event = ClientEvent.source[Unit]
@@ -54,7 +54,7 @@ class ScalaTagsPushTest extends WordSpec with Matchers {
         val snapped = intSink.snapshotWith(event) { (int, _) =>
           int
         }
-        val folded = snapped.fold(0)(_ + _).toDBehavior
+        val folded = snapped.fold(0)(_ + _)
 
         lazy val ui = folded.map { x =>
           div(x, twentyDivRead)

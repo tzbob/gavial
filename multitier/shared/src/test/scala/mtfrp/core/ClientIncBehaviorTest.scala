@@ -7,7 +7,7 @@ class ClientIBehaviorTest extends WordSpec with Matchers {
   "ClientIBehavior" must {
     "have initial values when replicated" in {
       val emptyEvent = AppEvent.empty[Client => Option[Int]]
-      val zeroBehavior = emptyEvent.fold((c: Client) => 0) { (accF, _) =>
+      val zeroBehavior = emptyEvent.foldI((c: Client) => 0) { (accF, _) =>
         accF
       }
 

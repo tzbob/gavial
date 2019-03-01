@@ -10,7 +10,7 @@ import snabbdom.VNode
 
 import scala.scalajs.js
 
-trait MyMain extends js.JSApp with FrpMain with LazyLogging {
+trait GavialApp extends js.JSApp with FrpMain with LazyLogging {
 
   override def main(): Unit = {
     setup()

@@ -21,7 +21,7 @@ class ReplicationGraphClientTest extends WordSpec {
   }
 
   def makeCountingBehavior(beh1src: ClientEvent[Int]) = {
-    ClientIBehavior.toApp(beh1src.fold(0)(_ + _))
+    ClientIBehavior.toApp(beh1src.foldI(0)(_ + _))
   }
 
   "ReplicationGraphClientTest" should {

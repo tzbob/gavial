@@ -24,13 +24,12 @@ class DBehaviorTest extends WordSpec {
         val emptyEvent = AppEvent.sourceWithEngineEffect[Int] { fire =>
           test = true
         }
-        val count = emptyEvent.fold(1)(_ + _).toDBehavior
+        val count = emptyEvent.fold(1)(_ + _)
 
         val delayed: AppBehavior[Int] = AppDBehavior.delayed(result)
         val dd = delayed
           .sampledBy(emptyEvent: AppEvent[Int])
           .fold(10)(_ + _)
-          .toDBehavior
         val result = dd.map2(count)(_ + _)
 
         val client = SessionEvent.toClient(AppEvent.toSession(result.changes))
@@ -55,13 +54,12 @@ class DBehaviorTest extends WordSpec {
         val emptyEvent = ClientEvent.sourceWithEngineEffect[Int] { fire =>
           test = true
         }
-        val count = emptyEvent.fold(1)(_ + _).toDBehavior
+        val count = emptyEvent.fold(1)(_ + _)
 
         val delayed: ClientBehavior[Int] = ClientDBehavior.delayed(result)
         val dd = delayed
           .sampledBy(emptyEvent: ClientEvent[Int])
           .fold(10)(_ + _)
-          .toDBehavior
         val result = dd.map2(count)(_ + _)
 
         val client = ClientDBehavior.toSession(result)

@@ -36,7 +36,7 @@ class XhrRouteCreatorTest extends WordSpec with ScalatestRouteTest {
 
       val clientEvent = new ClientEvent[Int](GraphState.default)
       val appBehavior: AppIBehavior[Int, Int] =
-        ClientEvent.toApp(clientEvent).fold(0) { (old, n) =>
+        ClientEvent.toApp(clientEvent).foldI(0) { (old, n) =>
           old + n
         }
       val clientBehavior =

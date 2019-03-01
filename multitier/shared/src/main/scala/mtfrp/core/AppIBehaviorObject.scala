@@ -51,7 +51,7 @@ trait AppIBehaviorObject {
   }
 
   val clients: AppIBehavior[Set[Client], ClientChange] =
-    AppEvent.clientChanges.fold(Set.empty[Client]) { (set, change) =>
+    AppEvent.clientChanges.foldI(Set.empty[Client]) { (set, change) =>
       change match {
         case Connected(c)    => set + c
         case Disconnected(c) => set - c

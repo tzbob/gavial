@@ -23,7 +23,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
   def makeCountingBehavior(
       beh1src: AppEvent[Client => Option[Int]]): ClientIBehavior[Int, Int] = {
     AppIBehavior.toClient(beh1src
-                            .fold((c: Client) => 0) {
+                            .foldI((c: Client) => 0) {
                               (accF, newF) => (c: Client) =>
                                 accF(c) + newF(c).getOrElse(0)
                             },
@@ -126,7 +126,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
           new SessionEvent(new AppEvent(src, GraphState.default),
                            GraphState.default)
 
-        val behavior: SessionIBehavior[Int, Int] = event.fold(0) { (acc, n) =>
+        val behavior: SessionIBehavior[Int, Int] = event.foldI(0) { (acc, n) =>
           eff()
           acc + n
         }
@@ -139,7 +139,7 @@ class ReplicationGraphServerTest extends WordSpec with Matchers {
         val event: AppEvent[Map[Client, Int]] =
           new AppEvent(src, GraphState.default)
         val behavior: AppIBehavior[Int, Int] =
-          event.map(_.values.head).fold(0) { (acc, n) =>
+          event.map(_.values.head).foldI(0) { (acc, n) =>
             eff()
             acc + n
           }

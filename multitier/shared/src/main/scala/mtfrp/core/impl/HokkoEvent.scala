@@ -10,8 +10,8 @@ class HokkoEvent[T <: HokkoTier: HokkoBuilder, A](
 
   private[this] val hokkoBuilder = implicitly[HokkoBuilder[T]]
 
-  def fold[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A] =
-    hokkoBuilder.IBehavior(rep.fold(initial)(f), graph)
+  def foldI[B](initial: B)(f: (B, A) => B): T#IBehavior[B, A] =
+    hokkoBuilder.IBehavior(rep.foldI(initial)(f), graph)
 
   def unionWith(other: T#Event[A])(f: (A, A) => A): T#Event[A] =
     hokkoBuilder.event(rep.unionWith(other.rep)(f),

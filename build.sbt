@@ -5,8 +5,7 @@ resolvers in ThisBuild += "Sonatype OSS Snapshots" at
 
 organization in ThisBuild := "be.tzbob"
 scalaVersion in ThisBuild := "2.12.4"
-crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.4")
-version in ThisBuild := "0.3.9-SNAPSHOT"
+version in ThisBuild := "0.4.0-SNAPSHOT"
 
 scalacOptions in ThisBuild ++= Seq(
   "-encoding",
@@ -17,7 +16,6 @@ scalacOptions in ThisBuild ++= Seq(
   "-Yno-adapted-args",
   "-Ywarn-dead-code",
   "-Ywarn-numeric-widen",
-  "-Ywarn-value-discard",
   "-language:higherKinds",
   "-Ypartial-unification"
 )
@@ -27,12 +25,12 @@ lazy val multitier = crossProject
   .settings(
     addCompilerPlugin(
       "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
-    name := "kooi",
+    name := "gavial",
     addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4"),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core"   % "1.0.1",
       "biz.enef"      %%% "slogging"    % "0.5.3",
-      "be.tzbob"      %%% "hokko"       % "0.4.9-SNAPSHOT",
+      "be.tzbob"      %%% "hokko"       % "0.6.0",
       "com.lihaoyi"   %%% "scalatags"   % "0.6.3",
       "org.typelevel" %%% "cats-effect" % "0.9",
       "org.scalatest" %%% "scalatest"   % "3.0.1" % "test"
@@ -54,7 +52,7 @@ lazy val multitier = crossProject
     npmDependencies in Test += "event-source-polyfill" -> "0.0.9",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom"     % "0.9.1",
-      "be.tzbob"     %%% "scalatags-hokko" % "0.3.5-SNAPSHOT"
+      "be.tzbob"     %%% "scalatags-hokko" % "0.4.1"
     )
   )
 
@@ -80,7 +78,7 @@ lazy val multitierJVM = multitier.jvm.dependsOn(macrosJVM)
 lazy val docs = project
   .in(file("docs"))
   .settings(
-    micrositeName := "Kooi",
+    micrositeName := "Gavial",
     micrositeDescription := "Multi-tier functional reactive programming for " +
       "Scala",
     micrositeHighlightTheme := "atom-one-light",

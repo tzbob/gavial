@@ -9,7 +9,7 @@ import scala.scalajs.js
 
 class ScalaTagsPullTest extends WordSpec with Matchers {
 
-  def setupTestBody(main: => MyMain) = {
+  def setupTestBody(main: => GavialApp) = {
 
     val el = dom.document.body
     while (el.childElementCount > 1) el.removeChild(el.lastChild)
@@ -39,7 +39,7 @@ class ScalaTagsPullTest extends WordSpec with Matchers {
 
   "UI in Main" should {
     "push multiple events from counter" in {
-      class Counter extends MyMain {
+      class Counter extends GavialApp {
         import UI.html.all._
 
         val inc = 1
@@ -55,7 +55,7 @@ class ScalaTagsPullTest extends WordSpec with Matchers {
         val decButton = mkButton(decInput, "Decrement", dec)
 
         val state =
-          incInput.unionWith(decInput)(_ + _).fold(0)(_ + _).toDBehavior
+          incInput.unionWith(decInput)(_ + _).fold(0)(_ + _)
 
         val ui: ClientDBehavior[UI.HTML] = state.map(
           v =>
