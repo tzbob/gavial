@@ -21,7 +21,7 @@ case class GraphState(
     copy(Eval.now(false), history = Eval.later(this #:: history.value))
 
   def mergeGraphAndEffect(other: GraphState): GraphState =
-    GraphState.any.combine(this, other)
+    GraphState.combine((t, _) => t).combine(this, other)
 
   def withEffect(eff: Eval[Engine => Unit]): GraphState =
     copy(effect = effect.map2(eff) { _ + _ },
