@@ -20,8 +20,39 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ypartial-unification"
 )
 
+lazy val publishSettings = Seq(
+  homepage := Some(url("https://github.com/tzbob/gavial")),
+  licenses := Seq(
+    "MIT" -> url("https://opensource.org/licenses/mit-license.php")),
+  publishMavenStyle := true,
+  publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+      Some("releases" at nexus + "service/local/staging/deploy/maven2")
+  },
+  pomExtra :=
+    <scm>
+      <url>git@github.com:tzbob/gavial.git</url>
+      <connection>scm:git:git@github.com:tzbob/gavial.git</connection>
+    </scm>
+      <developers>
+        <developer>
+          <id>tzbob</id>
+          <name>Bob Reynders</name>
+          <url>https://github.com/tzbob</url>
+        </developer>
+      </developers>
+)
+
+lazy val root = project
+  .in(file("."))
+  .aggregate(multitierJS, multitierJVM, macrosJS, macrosJVM, docs)
+
 lazy val multitier = crossProject
   .in(file("multitier"))
+  .settings(publishSettings: _*)
   .settings(
     addCompilerPlugin(
       "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
@@ -58,7 +89,9 @@ lazy val multitier = crossProject
 
 lazy val macros = crossProject
   .in(file("macros"))
+  .settings(publishSettings: _*)
   .settings(
+    name := "gavial-macros",
     addCompilerPlugin(
       "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
     libraryDependencies ++= Seq(
