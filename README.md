@@ -12,6 +12,8 @@ To get started with writing Gavial applications you need the [scala build tool](
 Given an appropriate build file, SBT will pull down all requires libraries and the appropriate Scala version for Gavial applications.
 NPM is required since there are some client-side libraries that are used by Scala.js dependencies of Gavial.
 
+> **Important:** without `npm` or `sbt` none of the following steps will work.
+
 ### Starting a new project
 
 A new project can be created through the following sbt command:
