@@ -3,6 +3,7 @@ package mtfrp.core
 import hokko.{core => HC}
 import slogging.LazyLogging
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class EventManager(graph: GraphState,
@@ -28,7 +29,7 @@ class EventManager(graph: GraphState,
       println("Application does not require Web Sockets, using XHRs.")
       val url = s"/${Names.xhr}/${ClientGenerator.static.id}"
       new XhrEventSender(rgc, engine).start(url)
-      ???
+      Future {()}
     }
   }
 }

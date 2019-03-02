@@ -82,6 +82,13 @@ You can start SBT through the `sbt` command and simply issue the `run` command t
 
 Before the application is running it should tell you in which mode it is running; websockets or xhr. After starting up it says at which location it is available, by default at: http://localhost:8080/
 
+### Using an IDE
+
+To find your way around the API in a much more convenient way it is recommended to use an IDE.
+[IntelliJ](https://www.jetbrains.com/idea/) with the Scala tools is what we use.
+After using the template you can use the IDE wizard: `file` -> `new project from existing sources` -> `build.sbt`.
+After importing you should have your Gavial project available with code completion and all other Scala tools.
+
 ## Creating a counter
 
 Now that you know how to get a Gavial template up and running, let us expand the hello world template to a shared counter:
