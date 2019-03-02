@@ -26,11 +26,12 @@ class SessionEvent[A] private[core] (
     val initialMap = Map.empty[Client, B]
 
     val changes = underlying.map { change =>
-      change -> Set.empty[ClientChange]
+      change -> Option.empty[SessionChange[B]]
     }
 
     val clientChanges = AppEvent.clientChanges.map { change =>
-      Map.empty[Client, A] -> Set(change)
+      Map.empty[Client, A] -> Option(
+        SessionChange.fromClientChange(change, initial))
     }
 
     val allChanges = changes.unionWith(clientChanges) { (l, r) =>
@@ -38,7 +39,7 @@ class SessionEvent[A] private[core] (
     }
 
     val newRep = allChanges.foldI(initialMap)(
-      IBehavior.transformFromNormalToSetClientChangeMap(initial, f)
+      IBehavior.transformFromNormalToSetClientChangeMapWithCurrent(f)
     )
 
     new SessionIBehavior(newRep, initial, this.graph)

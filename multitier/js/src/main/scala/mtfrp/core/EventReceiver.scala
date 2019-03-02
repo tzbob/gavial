@@ -6,11 +6,13 @@ import io.circe.generic.auto._
 import io.circe.parser._
 import slogging.LazyLogging
 
+import scala.concurrent.Future
+
 class EventReceiver(rgc: ReplicationGraphClient,
                     engine: HC.Engine,
                     listener: EventListener)
     extends LazyLogging {
-  def restart(url: String): Unit = {
+  def restart(url: String): Future[Unit] = {
     val decodeAndFire = { (str: String) =>
       val decoded = EventReceiver.decodeAsPulses(rgc, str)
       decoded match {
@@ -24,6 +26,7 @@ class EventReceiver(rgc: ReplicationGraphClient,
     }
 
     listener.restart(url, decodeAndFire)
+    listener.onFirstMessage
   }
 }
 

@@ -4,12 +4,17 @@ import org.scalajs.dom
 import org.scalajs.dom.{MessageEvent, WebSocket}
 import slogging.LazyLogging
 
+import scala.concurrent.{Future, Promise}
+
 class WsEventListener(onOpen: WebSocket => Unit)
     extends EventListener
     with LazyLogging {
   private[this] var websocket: WebSocket = null
   def stop(): Unit =
     if (websocket != null) websocket.close()
+
+  val p: Promise[Unit]             = Promise[Unit]()
+  val onFirstMessage: Future[Unit] = p.future
 
   override def restart(url: String, handler: String => Unit): Unit = {
     stop()
@@ -33,6 +38,7 @@ class WsEventListener(onOpen: WebSocket => Unit)
     })
 
     val listener = { (m: MessageEvent) =>
+      if (!p.isCompleted) p.success(())
       val jsonData = m.data.asInstanceOf[String]
       if (jsonData != "hb") {
         // ignore heartbeats

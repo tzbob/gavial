@@ -8,6 +8,8 @@ import scalatags.hokko.DomPatcher
 import slogging.LazyLogging
 import snabbdom.VNode
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.scalajs.js
 
 trait GavialApp extends js.JSApp with FrpMain with LazyLogging {
@@ -16,19 +18,22 @@ trait GavialApp extends js.JSApp with FrpMain with LazyLogging {
     setup()
   }
 
-  def setup(): (Engine, EventManager) = {
+  def setup(): Unit = {
     val rep      = ui.rep
     val behavior = rep.toCBehavior
     val manager  = new EventManager(ui.graph, Seq(behavior), Seq(rep.changes))
+    val onReset  = manager.start()
     val engine   = manager.engine
-    applyHtml(engine, rep)
+
+    applyHtml(engine, rep, onReset)
+
     // Run engine effects
     ui.graph.effect.value.foreach(_ apply engine)
-    manager.start()
-    engine -> manager
   }
 
-  def applyHtml(engine: Engine, behavior: HC.DBehavior[UI.HTML]): Unit = {
+  def applyHtml(engine: Engine,
+                behavior: HC.DBehavior[UI.HTML],
+                onReset: Future[Unit]): Unit = {
     val values      = engine.askCurrentValues()
     val initialVDom = values(behavior.toCBehavior)
     logger.debug(s"Initial VDOM: $initialVDom")
@@ -39,6 +44,16 @@ trait GavialApp extends js.JSApp with FrpMain with LazyLogging {
         def onLoad(x: Any) = {
           val el                     = dom.document.getElementById("mtfrpcontent")
           val domPatcher: DomPatcher = initialRendering(engine, vdom, el)
+
+          onReset.foreach { _ =>
+            val values            = engine.askCurrentValues()
+            val resetWithNewInits = values(behavior.toCBehavior)
+            resetWithNewInits.foreach { newInits =>
+              logger.info(s"Applying resets")
+              domPatcher.applyNewState(newInits.render(engine))
+            }
+          }
+
           patchDomOnChange(domPatcher, engine, behavior.changes)
         }
 

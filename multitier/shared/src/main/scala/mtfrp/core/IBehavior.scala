@@ -68,9 +68,28 @@ object IBehavior {
       }
   }
 
+  private[core] def transformFromNormalToSetClientChangeMapWithCurrent[A,
+                                                                       DeltaA](
+      f: (A, DeltaA) => A)
+    : (Map[Client, A],
+       (Map[Client, DeltaA], Option[SessionChange[A]])) => Map[Client, A] =
+    (acc: Map[Client, A],
+     delta: (Map[Client, DeltaA], Option[SessionChange[A]])) => {
+      val (deltaMap, change)    = delta
+      val accAfterSessionChange = SessionChange.applyToStateMap(acc, change)
+      deltaMap.foldLeft(accAfterSessionChange) {
+        case (acc, (client, da)) =>
+          if (!acc.contains(client))
+            throw new RuntimeException(s"Its here $acc $client")
+          acc.updated(client, f(acc(client), da))
+      }
+    }
+
   private[core] def transformFromNormalToSetClientChangeMap[A, DeltaA](
       initial: A,
-      f: (A, DeltaA) => A) = {
+      f: (A, DeltaA) => A)
+    : (Map[Client, A],
+       (Map[Client, DeltaA], Set[ClientChange])) => Map[Client, A] = {
     (acc: Map[Client, A], change: (Map[Client, DeltaA], Set[ClientChange])) =>
       val transformed         = transformFromNormal(initial, f)
       val (deltaMap, changes) = change
@@ -88,7 +107,9 @@ object IBehavior {
 
   private[core] def transformFromNormalToClientChangeMap[A, DeltaA](
       initial: A,
-      f: (A, DeltaA) => A) = {
+      f: (A, DeltaA) => A)
+    : (Map[Client, A],
+       (Map[Client, DeltaA], Option[ClientChange])) => Map[Client, A] = {
     (acc: Map[Client, A],
      change: (Map[Client, DeltaA], Option[ClientChange])) =>
       val (deltaMap, changeOpt) = change

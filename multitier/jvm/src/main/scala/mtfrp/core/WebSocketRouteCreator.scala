@@ -42,6 +42,7 @@ object WebSocketRouteCreator extends LazyLogging {
       case Some(cf) =>
         val messages = cf(client)
         val msg      = TextMessage.Strict(messages.asJson.noSpaces)
+        logger.info(s"offering $msg to $client")
         val qOffer   = queue.offer(msg)
         qOffer.failed.foreach { t =>
           logger.info(s"Could not offer $msg to $queue: $t")
@@ -92,9 +93,9 @@ class WebSocketRouteCreator(graph: ReplicationGraph) extends LazyLogging {
       .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
                  () => TextMessage.Strict("hb"))
       .watchTermination() { (queue, done) =>
-        val subscription = queueUpdates(client, queue)
-        queueResets(client, queue)
         notifyClientHasConnected(client)
+        queueResets(client, queue)
+        val subscription = queueUpdates(client, queue)
 
         done.onComplete { _ =>
           logger.debug(s"Output for Websocket is closed")

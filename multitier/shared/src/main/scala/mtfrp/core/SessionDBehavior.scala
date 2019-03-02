@@ -21,11 +21,17 @@ class SessionDBehavior[A] private[core] (
       patch: (A, DeltaA) => A): SessionIBehavior[A, DeltaA] = {
 
     new SessionIBehavior(
-      underlying.toIBehavior { (mOld: Map[Client, A], mNow: Map[Client, A]) =>
-        val disconnects = (mOld.keySet -- mNow.keys).map(Disconnected.apply)
-        val connects    = (mNow.keySet -- mOld.keys).map(Connected.apply)
+      underlying.toIBehavior { (mNow: Map[Client, A], mOld: Map[Client, A]) =>
+        // these can happen at most once in a timeslot
+        val disconnect =
+          (mOld.keySet -- mNow.keys).map(Disconnected.apply).headOption
+        val connect =
+          (mNow.keySet -- mOld.keys).map(Connected.apply).headOption
 
-        val clientChanges: Set[ClientChange] = disconnects ++ connects
+        val sessionChange: Option[SessionChange[A]] =
+          disconnect
+            .orElse(connect)
+            .map(c => SessionChange.fromClientChange(c, initial))
         val newMap: Map[Client, DeltaA] = mNow.keySet
           .intersect(mOld.keySet)
           .map { client =>
@@ -33,8 +39,8 @@ class SessionDBehavior[A] private[core] (
           }
           .toMap
 
-        newMap -> clientChanges
-      }(IBehavior.transformFromNormalToSetClientChangeMap(initial, patch)),
+        newMap -> sessionChange
+      }(IBehavior.transformFromNormalToSetClientChangeMapWithCurrent(patch)),
       initial,
       graph
     )
@@ -93,7 +99,9 @@ object SessionDBehavior extends DBehaviorObject[SessionTier] {
       implicit dec: Decoder[A],
       enc: Encoder[A]): ClientDBehavior[A] = {
     SessionIBehavior
-      .toClient(sessionB.toIBehavior((_, a) => a)((_, a) => a))
+      .toClient(sessionB.changes.foldI(sessionB.initial) { (_, a) =>
+        a
+      })
       .toDBehavior
   }
 
