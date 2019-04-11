@@ -76,31 +76,15 @@ object AppIBehavior
 
     val hokkoBuilder = implicitly[HokkoBuilder[ClientTier]]
 
-    val deltas = hokko.core.Event.source[DeltaA]
-    val resets = hokko.core.Event.source[A]
-
-    val newGraph = appBeh.graph.replicationGraph.map { rg =>
-      ReplicationGraphClient.ReceiverBehavior[A, DeltaA](rg, resets, deltas)
-    }
-
-    // TODO: Improve with an initial value reader/injector
-    /*
-    This is correct, the actual initial values are sent as a
-    reset request, the initial values of behaviors are only used as
-    an asap-initialisation mechanism.
-     */
-
     val transformedAccumulator =
       IBehavior.transformToNormal(appBeh.accumulator)
 
-    val replicatedBehavior: core.IBehavior[A, DeltaA] =
-      deltas
-        .resetFold(resets)(init) { (acc, n) =>
-          transformedAccumulator(acc, n)
-        }
-
-    hokkoBuilder.IBehavior(replicatedBehavior,
-                           appBeh.graph.ws.withGraph(newGraph))
+    Replicator.toClient(
+      init,
+      transformedAccumulator,
+      appBeh.toDBehavior.toBehavior,
+      appBeh.deltas
+    )
   }
 }
 

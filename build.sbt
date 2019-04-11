@@ -5,7 +5,7 @@ resolvers in ThisBuild += "Sonatype OSS Snapshots" at
 
 organization in ThisBuild := "be.tzbob"
 scalaVersion in ThisBuild := "2.12.4"
-version in ThisBuild := "0.4.0-SNAPSHOT"
+version in ThisBuild := "0.4.2-SNAPSHOT"
 
 scalacOptions in ThisBuild ++= Seq(
   "-encoding",
@@ -61,7 +61,7 @@ lazy val multitier = crossProject
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core"   % "1.0.1",
       "biz.enef"      %%% "slogging"    % "0.5.3",
-      "be.tzbob"      %%% "hokko"       % "0.6.0",
+      "be.tzbob"      %%% "hokko"       % "0.6.1",
       "com.lihaoyi"   %%% "scalatags"   % "0.6.3",
       "org.typelevel" %%% "cats-effect" % "0.9",
       "org.scalatest" %%% "scalatest"   % "3.0.1" % "test"
@@ -83,7 +83,7 @@ lazy val multitier = crossProject
     npmDependencies in Test += "event-source-polyfill" -> "0.0.9",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom"     % "0.9.1",
-      "be.tzbob"     %%% "scalatags-hokko" % "0.4.1"
+      "be.tzbob"     %%% "scalatags-hokko" % "0.4.2"
     )
   )
 

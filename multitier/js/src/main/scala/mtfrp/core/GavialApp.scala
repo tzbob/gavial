@@ -49,7 +49,7 @@ trait GavialApp extends js.JSApp with FrpMain with LazyLogging {
             val values            = engine.askCurrentValues()
             val resetWithNewInits = values(behavior.toCBehavior)
             resetWithNewInits.foreach { newInits =>
-              logger.info(s"Applying resets")
+              logger.info(s"Applying resets $newInits")
               domPatcher.applyNewState(newInits.render(engine))
             }
           }

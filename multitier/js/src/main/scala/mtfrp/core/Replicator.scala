@@ -1,9 +1,9 @@
 package mtfrp.core
 
+import cats.data.Ior
 import io.circe.{Decoder, Encoder}
 import hokko.core
 import mtfrp.core.impl.HokkoBuilder
-
 import cats.implicits._
 
 object Replicator {

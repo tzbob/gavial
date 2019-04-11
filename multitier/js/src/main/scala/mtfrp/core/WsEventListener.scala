@@ -38,12 +38,12 @@ class WsEventListener(onOpen: WebSocket => Unit)
     })
 
     val listener = { (m: MessageEvent) =>
-      if (!p.isCompleted) p.success(())
       val jsonData = m.data.asInstanceOf[String]
       if (jsonData != "hb") {
         // ignore heartbeats
         logger.debug(s"Message retrieved from WebSocket: $jsonData")
         handler(jsonData)
+        if (!p.isCompleted) p.success(())
       }
     }
     websocket.addEventListener("message", listener)
