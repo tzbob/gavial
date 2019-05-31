@@ -25,9 +25,9 @@ A session tier is the client tier’s server counterpart and for each conceptual
 <p>We start from the client counter example and re-define <code class="highlighter-rouge">state</code> to be executed on the server:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">sessionState</span> <span class="k">=</span> <span class="nc">ClientEvent</span><span class="o">.</span><span class="n">toSession</span><span class="o">(</span><span class="n">counterSource</span><span class="o">).</span><span class="n">fold</span><span class="o">(</span><span class="mi">0</span><span class="o">)(</span><span class="k">_</span> <span class="o">+</span> <span class="k">_</span><span class="o">)</span>
-<span class="c1">// sessionState: SessionTier#DBehavior[Int] = mtfrp.core.SessionDBehavior@42ecd816
+<span class="c1">// sessionState: SessionTier#DBehavior[Int] = mtfrp.core.SessionDBehavior@65eabb74
 </span><span class="k">val</span> <span class="n">state</span> <span class="k">=</span> <span class="nc">SessionDBehavior</span><span class="o">.</span><span class="n">toClient</span><span class="o">(</span><span class="n">sessionState</span><span class="o">)</span>
-<span class="c1">// state: ClientDBehavior[Int] = mtfrp.core.ClientDBehavior@1f30f5f7
+<span class="c1">// state: ClientDBehavior[Int] = mtfrp.core.ClientDBehavior@5110b41
 </span></code></pre></div></div>
 
 <p>We use two replication primitives (<code class="highlighter-rouge">.toSession</code> and <code class="highlighter-rouge">.toClient</code>) to convert between tiers.
@@ -41,9 +41,9 @@ The new <code class="highlighter-rouge">sessionState</code> contains the counter
 <p>To create a shared counter we once again redefine how the counter is folded. The behavior of this example should be that several clients at once share the same counter and see the same state. Whenever a client adds to subtracts from the counter, all other clients immediately see the changes.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">appState</span> <span class="k">=</span> <span class="nc">SessionEvent</span><span class="o">.</span><span class="n">toApp</span><span class="o">(</span><span class="nc">ClientEvent</span><span class="o">.</span><span class="n">toSession</span><span class="o">(</span><span class="n">counterSource</span><span class="o">)).</span><span class="n">fold</span><span class="o">(</span><span class="mi">0</span><span class="o">)(</span><span class="k">_</span> <span class="o">+</span> <span class="k">_</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">sum</span><span class="o">)</span>
-<span class="c1">// appState: AppTier#DBehavior[Int] = mtfrp.core.AppDBehavior@64bd40b6
+<span class="c1">// appState: AppTier#DBehavior[Int] = mtfrp.core.AppDBehavior@5919b6be
 </span><span class="k">val</span> <span class="n">state</span> <span class="k">=</span> <span class="nc">SessionDBehavior</span><span class="o">.</span><span class="n">toClient</span><span class="o">(</span><span class="nc">AppDBehavior</span><span class="o">.</span><span class="n">toSession</span><span class="o">(</span><span class="n">appState</span><span class="o">))</span>
-<span class="c1">// state: ClientDBehavior[Int] = mtfrp.core.ClientDBehavior@42378f2a
+<span class="c1">// state: ClientDBehavior[Int] = mtfrp.core.ClientDBehavior@66fdf6b4
 </span></code></pre></div></div>
 
 <p>This time we define <code class="highlighter-rouge">appState</code>, state computed on the <code class="highlighter-rouge">App</code> tier by going from client to session to application.
